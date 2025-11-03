@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Button,
   Alert,
   StyleSheet,
+  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
@@ -18,8 +19,15 @@ import type { AxiosError } from 'axios';
 export default function LoginScreen() {
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useContext(AuthContext);
+  const { user, login, loading } = useContext(AuthContext);
   const router = useRouter();
+
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/home'); // ✅ auto-redirect to home if already logged in
+    }
+  }, [loading, user]);
 
   const handleLogin = async () => {
     try {
@@ -33,6 +41,14 @@ export default function LoginScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
+  
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}

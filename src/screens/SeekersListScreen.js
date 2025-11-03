@@ -8,6 +8,10 @@ import {
   TextInput,
   RefreshControl,
   TouchableOpacity,
+  Modal,
+  ScrollView,
+  Switch,
+  Button,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/apiClient";
@@ -19,10 +23,32 @@ export default function SeekersListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const [filterVisible, setFilterVisible] = useState(false);
+  
+  const [filters, setFilters] = useState({
+    zone: "",
+    type: "",
+    interested_in_followup: null,
+    attended_puja: null,
+    attended_centres: null,
+    attended_session_1: null,
+    attended_session_2: null,
+    attended_session_3: null,
+    attended_session_4: null,
+    month_1: "",
+    month_2: "",
+  });
 
-  const fetchSeekers = async () => {
+  const fetchSeekers = async (filters = {}) => {
     try {
-      const response = await api.get("/seekers"); // Make sure this route exists in Laravel
+      const queryParams = Object.entries(filters)
+        .filter(([_, value]) => value !== "" && value !== null)
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join("&");
+  
+      const url = queryParams ? `/seekers?${queryParams}` : "/seekers";
+  
+      const response = await api.get(url);
       setSeekers(response.data);
     } catch (error) {
       console.error("Error fetching seekers:", error.message);
@@ -31,6 +57,7 @@ export default function SeekersListScreen() {
       setRefreshing(false);
     }
   };
+  
 
   useEffect(() => {
     fetchSeekers();
@@ -51,6 +78,40 @@ export default function SeekersListScreen() {
     );
   }
 
+  const handleApplyFilters = () => {
+    const params = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== "" && v !== null)
+    );
+    setFilterVisible(false);
+    fetchSeekers(params);
+  };
+
+  const handleReset = () => {
+    setFilters({
+      zone: "",
+      type: "",
+      interested_in_followup: null,
+      attended_puja: null,
+      attended_centres: null,
+      entry_date: "",
+      attended_session_1: null,
+      attended_session_2: null,
+      attended_session_3: null,
+      attended_session_4: null,
+    });
+  };
+
+  const applyFilters = async (filters) => {
+    setFilterVisible(false);
+  
+    try {
+      const response = await api.get("/seekers", { params: filters });
+      setSeekers(response.data);
+    } catch (error) {
+      console.error("Error applying filters:", error.message);
+    }
+  };
+  
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.card}   onPress={() => router.push(`/seeker/${item.id}`)} // ✅ dynamic route
     >
@@ -70,14 +131,18 @@ export default function SeekersListScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Seekers List</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Seekers List</Text>
 
-      <TextInput
-        style={styles.searchBox}
-        placeholder="Search by name or mobile..."
-        value={search}
-        onChangeText={setSearch}
-      />
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setFilterVisible(true)}
+        >
+          <Ionicons name="filter" size={18} color="#fff" />
+          <Text style={styles.filterText}>Filter</Text>
+        </TouchableOpacity>
+      </View>
+
 
       <FlatList
         data={filteredSeekers}
@@ -94,6 +159,315 @@ export default function SeekersListScreen() {
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+
+
+      {/* 🪟 Filter Modal */}
+      <Modal visible={filterVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+
+            {/* ✖ Close Button */}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setFilterVisible(false)}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+            
+            {/* 👇 Scrollable Content */}
+            <ScrollView style={{ flexGrow: 1 }}>
+              <Text style={styles.modalTitle}>Filter Seekers</Text>
+
+
+              <TextInput
+                style={styles.searchBox}
+                placeholder="Search by name or mobile..."
+                value={search}
+                onChangeText={setSearch}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Zone"
+                value={filters.zone}
+                onChangeText={(text) => setFilters({ ...filters, zone: text })}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Type (1=Pratishthan, 2=Public)"
+                value={filters.type}
+                onChangeText={(text) => setFilters({ ...filters, type: text })}
+              />
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Interested in Follow-up</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.interested_in_followup === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, interested_in_followup: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.interested_in_followup === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, interested_in_followup: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.interested_in_followup === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, interested_in_followup: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended Puja</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_puja === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_puja: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_puja === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_puja: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_puja === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_puja: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended Centre</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_centres === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_centres: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_centres === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_centres: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_centres === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_centres: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* 🔹 Section 2: Checklist Filters */}
+              <Text style={styles.sectionTitle}>Pratishthan Checklist Filters</Text>
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended 1st Session</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_1 === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_1: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_1 === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_1: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_1 === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_1: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended 2nd Session</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_2 === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_2: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_2 === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_2: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_2 === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_2: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended 3rd Session</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_3 === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_3: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_3 === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_3: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_3 === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_3: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontWeight: "bold" }}>Attended 4th Session</Text>
+                <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_4 === true && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_4: true })}
+                  >
+                    <Text>Yes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_4 === false && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_4: false })}
+                  >
+                    <Text>No</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filters.attended_session_4 === null && styles.selectedOption,
+                    ]}
+                    onPress={() => setFilters({ ...filters, attended_session_4: null })}
+                  >
+                    <Text>Don't Consider</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* <TextInput
+                style={styles.input}
+                placeholder="Entry Date (YYYY-MM-DD)"
+                value={filters.entry_date}
+                onChangeText={(text) =>
+                  setFilters({ ...filters, entry_date: text })
+                }
+              /> */}
+
+              <View style={styles.modalButtons}>
+                <Button title="Reset" color="#888" onPress={handleReset} />
+                <Button title="Apply" onPress={handleApplyFilters} />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -121,4 +495,127 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   mobile: { fontSize: 14, marginLeft: 6, color: "#333" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 15,
+  },
+  
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2196F3",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  
+  filterText: {
+    color: "#fff",
+    marginLeft: 5,
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    height: "80%", // give enough height for scrolling
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  closeButton: { fontSize: 22, color: "#999" },
+  section: { marginVertical: 10 },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  footer: {
+    marginTop: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 15,
+  },
+  closeButton: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    zIndex: 10,
+    backgroundColor: "#f1f1f1",
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  closeText: {
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "600",
+  },
+  filterOption: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  selectedOption: {
+    backgroundColor: "#2196F3",
+    borderColor: "#2196F3",
+    color: "#fff",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 15,
+    marginBottom: 8,
+    color: "#1565C0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    paddingBottom: 4,
+  },
+  
 });

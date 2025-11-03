@@ -15,7 +15,11 @@ export default function SeekerProfileScreen() {
     const fetchSeeker = async () => {
       try {
         const response = await api.get(`/seekers/${id}`);
-        setSeeker(response.data);
+        console.log("📦 Full Seeker Response:", response.data);
+
+        console.log("🧑 Moderator:", response.data?.moderator);
+
+        setSeeker(response.data);        
       } catch (error) {
         console.log("Error fetching seeker:", error.message);
       } finally {
@@ -96,12 +100,17 @@ export default function SeekerProfileScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Interested in Follow-up:</Text>
-                    <Text style={styles.value}>{seeker.follow_up ? "Yes" : "No"}</Text>
+                    <Text style={styles.value}>{seeker.interested_in_followup ? "Yes" : "No"}</Text>
                 </View>
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Entry Date:</Text>
                     <Text style={styles.value}>{seeker.created_at || "N/A"}</Text>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.label}>Sahajayogi Responsible:</Text>
+                    <Text style={styles.value}>{seeker.moderator}</Text>
                 </View>
 
                 <View style={styles.section}>

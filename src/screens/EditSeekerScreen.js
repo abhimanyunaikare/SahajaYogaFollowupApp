@@ -28,7 +28,7 @@ export default function EditSeekerScreen() {
     zone: "",
     type: "1",
     occupation: "",
-    followup: false,
+    interested_in_followup: false,
   });
 
   const handleChange = (key, value) => {
@@ -133,14 +133,14 @@ export default function EditSeekerScreen() {
       <View style={styles.switchContainer}>
         <Text style={styles.switchLabel}>Interested in Follow-up</Text>
         <View style={styles.switchWithSides}>
-          <Text style={[styles.sideText, !form.followup && styles.activeOff]}>No</Text>
+          <Text style={[styles.sideText, !form.interested_in_followup && styles.activeOff]}>No</Text>
           <Switch
-            value={form.followup}
-            onValueChange={(val) => handleChange("followup", val)}
-            thumbColor={form.followup ? "#2196F3" : "#f4f3f4"}
+            value={form.interested_in_followup}
+            onValueChange={(val) => handleChange("interested_in_followup", val)}
+            thumbColor={form.interested_in_followup ? "#2196F3" : "#f4f3f4"}
             trackColor={{ false: "#ccc", true: "#81b0ff" }}
           />
-          <Text style={[styles.sideText, form.followup && styles.activeOn]}>Yes</Text>
+          <Text style={[styles.sideText, form.interested_in_followup && styles.activeOn]}>Yes</Text>
         </View>
       </View>
 
