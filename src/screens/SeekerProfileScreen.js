@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useLayoutEffect } from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
-import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import React, { useEffect, useLayoutEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import api from "../api/apiClient";
 
 export default function SeekerProfileScreen() {
@@ -16,8 +16,6 @@ export default function SeekerProfileScreen() {
       try {
         const response = await api.get(`/seekers/${id}`);
         console.log("📦 Full Seeker Response:", response.data);
-
-        console.log("🧑 Moderator:", response.data?.moderator);
 
         setSeeker(response.data);        
       } catch (error) {
@@ -110,7 +108,9 @@ export default function SeekerProfileScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Sahajayogi Responsible:</Text>
-                    <Text style={styles.value}>{seeker.moderator}</Text>
+                    <Text style={styles.value}> {seeker.moderator
+    ? `🧑‍💼 ${seeker.moderator.name}`
+    : '🚫 Moderator not assigned'} </Text>
                 </View>
 
                 <View style={styles.section}>
