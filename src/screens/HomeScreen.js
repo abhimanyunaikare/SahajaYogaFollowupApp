@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
+import { View, Text, Alert, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../../src/context/AuthContext";
@@ -7,6 +7,7 @@ import api from "../api/apiClient";
 
 export default function HomeScreen() {
     const [totalSeekers, setTotalSeekers] = useState(0);
+    const [stats, setStats] = useState(null);
     const router = useRouter();
     const { user, logout } = useContext(AuthContext);
 
@@ -20,10 +21,11 @@ export default function HomeScreen() {
     useEffect(() => {
       const fetchSeekers = async () => {
         try {
-          const response = await api.get("/seekers"); // or /seekers/count
-          setTotalSeekers(response.data.length || response.data.count || 0);
+          const response = await api.get("/dashboard/stats");
+          setStats(response.data);  
+          console.log('stats',response.data.unallocated_seekers)
         } catch (error) {
-          console.log("Error fetching seekers:", error.message);
+          console.log("Error fetching stat:", error.message);
         }
       };
       fetchSeekers();
@@ -34,9 +36,26 @@ export default function HomeScreen() {
       { id: "2", title: "Add Seeker", icon: "person-add", color: "#2196F3", route: "/addSeeker" , permissionId: 1 },
       { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports" , permissionId: 4 },
       { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles" , permissionId: 9 },
-      { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/roles" , permissionId: 3 },
-      { id: "6", title: "Logout", icon: "log-out", color: "#F44336", route: "/login" },
+      { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users" , permissionId: 3 },
+      { id: "6", title: "Logout", icon: "log-out", color: "#F44336"},
     ];
+
+    const handlePress = async (item) => {
+      if (item.title === "Logout") {
+        Alert.alert("Logout", "Are you sure you want to log out?", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Logout",
+            onPress: async () => {
+              await logout();
+              router.replace("/login"); // 👈 Redirect to login screen
+            },
+          },
+        ]);
+      } else {
+        router.push(item.route);
+      }
+    };
 
     const accessibleMenuItems = menuItems.filter(
       (item) =>
@@ -47,8 +66,8 @@ export default function HomeScreen() {
     const renderItem = ({ item }) => (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: item.color }]}
-        onPress={() => router.push(item.route)} // ✅ useRouter navigation
-      >
+        onPress={() => handlePress(item)} // 👈 Updated line
+    >
         <Ionicons name={item.icon} size={28} color="#fff" />
         <Text style={styles.cardText}>{item.title}</Text>
       </TouchableOpacity>
@@ -57,7 +76,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Welcome, {user?.name || "Guest"}! 🙏</Text>
-        <Text style={styles.sub_title}>{user?.role_name || "Guest"}</Text>
+        <Text style={styles.sub_title}>{user?.role_name || "No Role"}</Text>
 
         <FlatList
           data={accessibleMenuItems}
@@ -70,12 +89,14 @@ export default function HomeScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statsCard}>
-            <Text style={styles.statsCount}>{totalSeekers}</Text>
-            <Text style={styles.statsLabel}>Unallocated Seekers</Text>
+            <Text style={styles.statsCount}>  {stats?.unallocated_seekers ?? 0}
+</Text>
+            <Text style={styles.statsLabel}>Unassigned Seekers</Text>
           </View>
 
           <View style={styles.statsCard}>
-            <Text style={styles.statsCount}>{totalSeekers}</Text>
+            <Text style={styles.statsCount}>  {stats?.total_seekers ?? 0}
+</Text>
             <Text style={styles.statsLabel}>Total Seekers</Text>
           </View>
         </View>

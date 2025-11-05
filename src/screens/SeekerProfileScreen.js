@@ -27,21 +27,31 @@ export default function SeekerProfileScreen() {
     fetchSeeker();
   }, [id]);
 
-   // 👇 Add the edit button on the top-right
-   useLayoutEffect(() => {
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => router.push(`/seeker/edit/${id}`)}
-          style={{ marginRight: 15 }}
-        >
-          <Text style={{ color: "#007AFF", fontWeight: "600" }}>Edit</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {/* 🏠 Home Button */}
+          {/* <TouchableOpacity
+            onPress={() => router.replace("/")}
+            style={{ marginRight: 15 }}
+          >
+            <Text style={{ color: "#007AFF", fontWeight: "600" }}>Home</Text>
+          </TouchableOpacity>
+   */}
+          {/* ✏️ Edit Button */}
+          <TouchableOpacity
+            onPress={() => router.push(`/seeker/edit/${id}`)}
+            style={{ marginRight: 1 }}
+          >
+            <Text style={{ color: "#007AFF", fontWeight: "600" }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
       ),
       title: "Seeker Details",
     });
   }, [navigation, id]);
-
+  
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -103,7 +113,13 @@ export default function SeekerProfileScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Entry Date:</Text>
-                    <Text style={styles.value}>{seeker.created_at || "N/A"}</Text>
+                    <Text style={styles.value}>{seeker.created_at
+                    ? new Date(seeker.created_at).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "N/A"}</Text>
                 </View>
 
                 <View style={styles.section}>
@@ -115,7 +131,13 @@ export default function SeekerProfileScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Updated Date:</Text>
-                    <Text style={styles.value}>{seeker.updated_at || "N/A"}</Text>
+                    <Text style={styles.value}>{seeker.updated_at
+                      ? new Date(seeker.updated_at).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "N/A"}</Text>
                 </View>
             </View>
 

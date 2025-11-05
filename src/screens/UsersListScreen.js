@@ -18,11 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../api/apiClient";
 import { useRouter } from "expo-router";
 
-export default function SeekersListScreen() {
+export default function UsersListScreen() {
   const [seekers, setSeekers] = useState([]);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -31,16 +29,11 @@ export default function SeekersListScreen() {
   const [moderatorModalVisible, setModeratorModalVisible] = useState(false);
   const [moderators, setModerators] = useState([]);
   const [selectedModerator, setSelectedModerator] = useState(null);
-  const [initialLoading, setInitialLoading] = useState(true); // first screen load
-  const [currentFilters, setCurrentFilters] = useState({});
 
   const [filters, setFilters] = useState({
-    name: "",
-    mobile: "",
     zone: "",
     type: "",
     interested_in_followup: null,
-    moderator_id: null,
     attended_puja: null,
     attended_centres: null,
     attended_session_1: null,
@@ -51,60 +44,27 @@ export default function SeekersListScreen() {
     month_2: "",
   });
 
-  const fetchSeekers = async (filters = {}, pageNumber = 1, refreshing = false) => {
-    // Prevent duplicate calls
-    if (loading && !refreshing && pageNumber !== 1) return;
-  
+  const fetchSeekers = async (filters = {}) => {
     try {
-      if (pageNumber === 1 && !refreshing) setInitialLoading(true);
-      setLoading(true);
-  
       const queryParams = Object.entries(filters)
         .filter(([_, value]) => value !== "" && value !== null)
         .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
         .join("&");
   
-      const url = queryParams
-        ? `/seekers?${queryParams}&page=${pageNumber}`
-        : `/seekers?page=${pageNumber}`;
-  
-      console.log("Fetching:", url); // 👈 check request actually fires
+      const url = queryParams ? `/seekers?${queryParams}` : "/seekers";
   
       const response = await api.get(url);
-      const data = response.data.data || [];
-      const isLastPage = response.data.current_page >= response.data.last_page;
-  
-      if (refreshing || pageNumber === 1) {
-        setSeekers(data);
-      } else {
-        setSeekers((prev) => [...prev, ...data]);
-      }
-  
-      setHasMore(!isLastPage);
-      setPage(pageNumber);
+      setSeekers(response.data);
     } catch (error) {
       console.error("Error fetching seekers:", error.message);
     } finally {
       setLoading(false);
-      setInitialLoading(false);
       setRefreshing(false);
     }
   };
   
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      fetchSeekers(currentFilters, page + 1);
-    }
-  };
-  
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchSeekers(currentFilters, 1, true);
-  };
-  
- // Call initially
   useEffect(() => {
-    fetchSeekers({}, 1, true);
+    fetchSeekers();
   }, []);
 
   const filteredSeekers = seekers.filter(
@@ -114,22 +74,13 @@ export default function SeekersListScreen() {
       s.mobile?.includes(search)
   );
 
-  // if (loading) {
-  //   return (
-  //     <View style={styles.loader}>
-  //       <ActivityIndicator size="large" color="#2196F3" />
-  //     </View>
-  //   );
-  // }
-
-  if (initialLoading) {
+  if (loading) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#2196F3" />
       </View>
     );
   }
-  
 
   const handleApplyFilters = () => {
     const params = Object.fromEntries(
@@ -141,12 +92,9 @@ export default function SeekersListScreen() {
 
   const handleReset = () => {
     setFilters({
-      name: "",
-      mobile: "",
       zone: "",
       type: "",
       interested_in_followup: null,
-      moderator_id: null,
       attended_puja: null,
       attended_centres: null,
       entry_date: "",
@@ -275,16 +223,17 @@ export default function SeekersListScreen() {
 
 
       <FlatList
-        data={seekers}
+        data={filteredSeekers}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        ListFooterComponent={
-          loading && <Text style={{ textAlign: "center", padding: 10 }}>Loading more...</Text>
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchSeekers();
+            }}
+          />
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -320,26 +269,12 @@ export default function SeekersListScreen() {
             <ScrollView style={{ flexGrow: 1 }}>
               <Text style={styles.modalTitle}>Filter Seekers</Text>
 
-{/* 
+
               <TextInput
                 style={styles.searchBox}
                 placeholder="Search by name or mobile..."
                 value={search}
                 onChangeText={setSearch}
-              /> */}
-
-              <TextInput
-                style={styles.input}
-                placeholder="Name"
-                value={filters.name}
-                onChangeText={(text) => setFilters({ ...filters, name: text })}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Mobile"
-                value={filters.mobile}
-                onChangeText={(text) => setFilters({ ...filters, mobile: text })}
               />
 
               <TextInput
@@ -385,41 +320,6 @@ export default function SeekersListScreen() {
                       filters.interested_in_followup === null && styles.selectedOption,
                     ]}
                     onPress={() => setFilters({ ...filters, interested_in_followup: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Moderator Assigned</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: null })}
                   >
                     <Text>Don't Consider</Text>
                   </TouchableOpacity>
