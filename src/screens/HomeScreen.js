@@ -34,8 +34,8 @@ export default function HomeScreen() {
     const menuItems = [
       { id: "1", title: "Seekers", icon: "people", color: "#4CAF50", route: "/seekers" },
       { id: "2", title: "Add Seeker", icon: "person-add", color: "#2196F3", route: "/addSeeker" , permissionId: 1 },
-      { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports" , permissionId: 4 },
-      { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles" , permissionId: 9 },
+      { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports" , permissionId: 7 },
+      { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles" , permissionId: 5 },
       { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users" , permissionId: 3 },
       { id: "6", title: "Logout", icon: "log-out", color: "#F44336"},
     ];

@@ -17,6 +17,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/apiClient";
 import { useRouter } from "expo-router";
+import { Picker } from "@react-native-picker/picker"; // 👈 install with: npm install @react-native-picker/picker
 
 export default function SeekersListScreen() {
   const [seekers, setSeekers] = useState([]);
@@ -349,12 +350,19 @@ export default function SeekersListScreen() {
                 onChangeText={(text) => setFilters({ ...filters, zone: text })}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Type (1=Pratishthan, 2=Public)"
-                value={filters.type}
-                onChangeText={(text) => setFilters({ ...filters, type: text })}
-              />
+              <View style={styles.inputContainer}>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={filters.type}
+                    onValueChange={(value) => setFilters({ ...filters, type: value })}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Type" value="" />
+                    <Picker.Item label="Pratishthan" value="1" />
+                    <Picker.Item label="Public" value="2" />
+                  </Picker>
+                </View>
+              </View>
 
               <View style={{ marginVertical: 10 }}>
                 <Text style={{ fontWeight: "bold" }}>Interested in Follow-up</Text>
