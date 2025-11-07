@@ -30,7 +30,7 @@ export default function HomeScreen() {
       };
       fetchSeekers();
     }, []);
-
+ 
     const menuItems = [
       { id: "1", title: "Seekers", icon: "people", color: "#4CAF50", route: "/seekers" },
       { id: "2", title: "Add Seeker", icon: "person-add", color: "#2196F3", route: "/addSeeker" , permissionId: 1 },
