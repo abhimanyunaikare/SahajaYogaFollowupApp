@@ -1,239 +1,244 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-    View,
-    Text,
-    TextInput,
-    Button,
-    ScrollView,
-    Alert,
-    StyleSheet,
-    Switch,
-    KeyboardAvoidingView,
-    Platform,
-    } from "react-native";
-    import api from "../api/apiClient";
-    import { useRouter } from "expo-router";
-    import { Picker } from '@react-native-picker/picker';
+  View,
+  TextInput,
+  Text,
+  Button,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../../src/api/apiClient";
 
-    export default function AddSeekerScreen() {
-    const [form, setForm] = useState({
-        first_name: "",
-        last_name: "",
-        email: "",
-        mobile: "",
-        address: "",
-        city: "Pune",
-        zone: "",
-        type: "1",
-        occupation: "",
-        followup: false,
-    });
+export default function AddSeekerScreen() {
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    mobile: "",
+    email: "",
+    age: "",
+    gender: "",
+    city: "Pune",
+    zone_id: "",
+    type: "", // 1 = Pratishthan, 2 = Public
+  });
 
-    const [errors, setErrors] = useState({});
-    const router = useRouter();
+  const [zones, setZones] = useState([]);
+  const router = useRouter();
 
-    const handleChange = (key, value) => {
-        setForm({ ...form, [key]: value });
-        setErrors({ ...errors, [key]: "" }); // clear error on input
+  const handleChange = (key, value) => setForm({ ...form, [key]: value });
+
+  // ✅ Fetch zones
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const res = await api.get("/zones");
+        setZones(res.data);
+      } catch (error) {
+        console.log("Error fetching zones:", error.message);
+      }
     };
+    fetchZones();
+  }, []);
 
-    const validate = () => {
-        const newErrors = {};
+  // ✅ Submit handler
+  const handleSubmit = async () => {
+    try {
+      const dataToSend = {
+        ...form,
+        zone_id: form.zone_id ? String(form.zone_id) : null,
+        type: form.type ? Number(form.type) : 0,
+      };
 
-        if (!form.first_name.trim()) newErrors.first_name = "First name is required.";
-        if (!form.mobile.trim()) newErrors.mobile = "Mobile number is required.";
-        else if (!/^\d{10}$/.test(form.mobile))
-        newErrors.mobile = "Enter a valid 10-digit mobile number.";
-
-        if (form.email && !/\S+@\S+\.\S+/.test(form.email))
-        newErrors.email = "Enter a valid email address.";
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async () => {
-        if (!validate()) return;
-
-        try {
-        const response = await api.post("/seekers", form);
-        Alert.alert("Success", "Seeker added successfully!");
-        setTimeout(() => {
-            router.replace("/seekers");
-        }, 1000);
-        } catch (error) {
-        console.log(error.response?.data || error.message);
-        Alert.alert("Error", "Failed to add seeker. Check inputs or connection.");
-        }
-    };
-
-    return (
-        <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={80}
-        >
-            <ScrollView
-            style={styles.container}
-            contentContainerStyle={{ paddingBottom: 50 }}
-            showsVerticalScrollIndicator={false}
-            >
-                <Text style={styles.title}>Add New Seeker</Text>
-
-                {/* First Name */}
-                <TextInput
-                    style={[styles.input, errors.first_name && styles.inputError]}
-                    placeholder="First Name"
-                    value={form.first_name}
-                    onChangeText={(text) => handleChange("first_name", text)}
-                />
-                {errors.first_name ? <Text style={styles.errorText}>{errors.first_name}</Text> : null}
-
-                {/* Last Name */}
-                <TextInput
-                    style={styles.input}
-                    placeholder="Last Name"
-                    value={form.last_name}
-                    onChangeText={(text) => handleChange("last_name", text)}
-                />
-
-                {/* Email */}
-                <TextInput
-                    style={[styles.input, errors.email && styles.inputError]}
-                    placeholder="Email"
-                    value={form.email}
-                    onChangeText={(text) => handleChange("email", text)}
-                />
-                {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-
-                {/* Mobile */}
-                <TextInput
-                    style={[styles.input, errors.mobile && styles.inputError]}
-                    placeholder="Mobile"
-                    keyboardType="phone-pad"
-                    value={form.mobile}
-                    onChangeText={(text) => handleChange("mobile", text)}
-                />
-                {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
-
-                <TextInput
-                    style={styles.input}
-                    placeholder="Address"
-                    value={form.address}
-                    onChangeText={(text) => handleChange("address", text)}
-                />
-
-                <TextInput
-                    style={styles.input}
-                    placeholder="City"
-                    value={form.city}
-                    onChangeText={(text) => handleChange("city", text)}
-                />
-
-                <TextInput
-                    style={styles.input}
-                    placeholder="Zone"
-                    value={form.zone}
-                    onChangeText={(text) => handleChange("zone", text)}
-                />
-                
-                {/* Type (Dropdown) */}
-                <View style={styles.dropdownContainer}>
-                    <Text style={styles.dropdownLabel}>Seeker Type</Text>
-                    <View style={styles.dropdownBox}>
-                        <Picker
-                        selectedValue={form.type}
-                        onValueChange={(itemValue) => handleChange("type", itemValue)}
-                        style={styles.picker}
-                        dropdownIconColor="#2196F3"
-                        >
-                        <Picker.Item label="Pratishthan" value="1" />
-                        <Picker.Item label="Public Program" value="2" />
-                        </Picker>
-                    </View>
-                </View>
-
-
-                <TextInput
-                    style={styles.input}
-                    placeholder="Occupation"
-                    value={form.occupation}
-                    onChangeText={(text) => handleChange("occupation", text)}
-                />
-
-                <View style={styles.switchContainer}>
-                    <Text style={styles.switchLabel}>Interested in Follow-up</Text>
-                    <View style={styles.switchWithSides}>
-                    <Text style={[styles.sideText, !form.followup && styles.activeOff]}>No</Text>
-                    <Switch
-                        value={form.followup}
-                        onValueChange={(val) => handleChange("followup", val)}
-                        thumbColor={form.followup ? "#2196F3" : "#f4f3f4"}
-                        trackColor={{ false: "#ccc", true: "#81b0ff" }}
-                    />
-                    <Text style={[styles.sideText, form.followup && styles.activeOn]}>YES</Text>
-                    </View>
-                </View>
-
-                <Button title="Save Seeker" onPress={handleSubmit} />
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+      await api.post("/seekers", dataToSend);
+      Alert.alert("Success", "Seeker added successfully!");
+      router.replace("/seekers");
+    } catch (error) {
+      console.log("Error adding seeker:", error.response?.data || error.message);
+      Alert.alert("Error", "Failed to add seeker");
     }
+  };
 
-    const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: "#fff" },
-    title: { fontSize: 22, fontWeight: "bold", marginBottom: 15, textAlign: "center" },
-    input: {
-        borderWidth: 1,
-        borderColor: "#ccc",
-        padding: 10,
-        marginBottom: 10,
-        borderRadius: 8,
-    },
-    inputError: {
-        borderColor: "#f44336",
-    },
-    errorText: {
-        color: "#f44336",
-        fontSize: 13,
-        marginTop: -5,
-        marginBottom: 10,
-    },
-    switchContainer: {
+  return (
+    <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+    keyboardVerticalOffset={100} // tweak this if needed
+  >
+    <ScrollView contentContainerStyle={styles.container}>      
+    
+    <Text style={styles.title}>Add New Seeker</Text>
+
+      {/* 🧍‍♂️ First Name */}
+      <View style={styles.inputRow}>
+        <Ionicons name="person-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="First Name"
+          value={form.first_name}
+          onChangeText={(text) => handleChange("first_name", text)}
+        />
+      </View>
+
+      {/* 🧍‍♀️ Last Name */}
+      <View style={styles.inputRow}>
+        <Ionicons name="person-circle-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Last Name"
+          value={form.last_name}
+          onChangeText={(text) => handleChange("last_name", text)}
+        />
+      </View>
+
+      {/* 📞 Mobile */}
+      <View style={styles.inputRow}>
+        <Ionicons name="call-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Mobile"
+          keyboardType="phone-pad"
+          value={form.mobile}
+          onChangeText={(text) => handleChange("mobile", text)}
+        />
+      </View>
+
+      {/* ✉️ Email */}
+      <View style={styles.inputRow}>
+        <Ionicons name="mail-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={form.email}
+          onChangeText={(text) => handleChange("email", text)}
+        />
+      </View>
+
+      {/* 🎂 Age */}
+      <View style={styles.inputRow}>
+        <Ionicons name="calendar-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Age"
+          keyboardType="numeric"
+          value={form.age}
+          onChangeText={(text) => handleChange("age", text)}
+        />
+      </View>
+
+      {/* 🚻 Gender */}
+      <Text style={styles.label}>Select Gender</Text>
+      <View style={styles.pickerContainer}>
+        <Ionicons name="man-outline" size={20} color="#555" style={styles.icon} />
+        <Picker
+          selectedValue={form.gender}
+          onValueChange={(value) => handleChange("gender", value)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select Gender" value="" />
+          <Picker.Item label="Male" value="Male" />
+          <Picker.Item label="Female" value="Female" />
+          <Picker.Item label="Other" value="Other" />
+        </Picker>
+      </View>
+
+      {/* 🏙 City */}
+        <View style={styles.inputRow}>
+        <Ionicons name="business-outline" size={20} color="#555" style={styles.icon} />
+        <TextInput
+            style={styles.input}
+            placeholder="City"
+            value={form.city}
+            onChangeText={(text) => handleChange("city", text)}
+        />
+        </View>
+
+
+      {/* 🌍 Zone */}
+      <Text style={styles.label}>Select Zone</Text>
+      <View style={styles.pickerContainer}>
+        <Ionicons name="location-outline" size={20} color="#555" style={styles.icon} />
+        <Picker
+          selectedValue={form.zone_id}
+          onValueChange={(value) => handleChange("zone_id", value)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select Zone" value="" />
+          {zones.map((zone) => (
+            <Picker.Item key={zone.id} label={zone.name} value={String(zone.id)} />
+          ))}
+        </Picker>
+      </View>
+
+      {/* 🧘‍♂️ Type */}
+      <Text style={styles.label}>Seeker Type</Text>
+      <View style={styles.pickerContainer}>
+        <Ionicons name="people-outline" size={20} color="#555" style={styles.icon} />
+        <Picker
+          selectedValue={form.type}
+          onValueChange={(value) => handleChange("type", value)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select Type" value="" />
+          <Picker.Item label="Pratishthan" value="1" />
+          <Picker.Item label="Public" value="2" />
+        </Picker>
+      </View>
+
+      <Button title="Save Seeker" onPress={handleSubmit} />
+      </ScrollView>
+    </KeyboardAvoidingView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flexGrow: 1,
+        padding: 15,
+        backgroundColor: "#fff",
+      },
+      title: {
+        fontSize: 20,
+        fontWeight: "bold",
         marginBottom: 20,
-    },
-    switchWithSides: {
+        textAlign: "center",
+      },
+      inputRow: {
         flexDirection: "row",
         alignItems: "center",
-    },
-    sideText: {
-        fontSize: 14,
-        color: "#999",
-        marginHorizontal: 6,
-    },
-    activeOn: { color: "#2196F3", fontWeight: "600" },
-    activeOff: { color: "#f44336", fontWeight: "600" },
-    
-  dropdownContainer: {
-    marginBottom: 15,
-  },
-  dropdownLabel: {
-        fontSize: 16,
-        fontWeight: "500",
-        color: "#333",
-        marginBottom: 6,
-    },
-    dropdownBox: {
         borderWidth: 1,
         borderColor: "#ccc",
         borderRadius: 8,
-        overflow: "hidden", // ensures clean edges
-        backgroundColor: "#fff",
-    },
-    picker: {
-        height: 50, // <-- increase height for full text visibility
-        width: "100%",
+        marginBottom: 15,
+        paddingHorizontal: 10,
+      },
+      icon: {
+        marginRight: 8,
+      },
+      input: {
+        flex: 1,
+        paddingVertical: 8,
+      },
+      label: {
+        marginBottom: 5,
+        fontWeight: "600",
         color: "#333",
-    },
+      },
+      pickerContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        marginBottom: 20,
+        paddingHorizontal: 10,
+      },
+      picker: {
+        flex: 1,
+      },
 });

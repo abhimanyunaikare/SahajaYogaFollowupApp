@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, RefreshControl, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import api from "../../src/api/apiClient";
 
 export default function UsersListScreen() {
@@ -49,7 +49,7 @@ export default function UsersListScreen() {
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.email}>{item.role.name}</Text>
-          <Text style={styles.mobile}>📍 {item.zone}</Text>
+          <Text style={styles.mobile}>📍 {item.zone?.name}</Text>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity onPress={() => router.push(`/users/edit/${item.id}`)}>
@@ -64,8 +64,24 @@ export default function UsersListScreen() {
   );
 
   return (
+    <>
+      {/* Custom header instead of "users/index" */}
+      <Stack.Screen
+        options={{
+          title: "Users List",
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push("/users/add")}
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons name="add-circle" size={26} color="#2196F3" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     <View style={styles.container}>
-      <View style={styles.headerRow}>
+  
+      {/* <View style={styles.headerRow}>
         <Text style={styles.title}>Users List</Text>
         <TouchableOpacity
           style={styles.addButton}
@@ -73,7 +89,7 @@ export default function UsersListScreen() {
         >
           <Ionicons name="add-circle" size={26} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <FlatList
         data={users}
@@ -84,6 +100,8 @@ export default function UsersListScreen() {
         }
       />
     </View>
+    </>
+
   );
 }
 

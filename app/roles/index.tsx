@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter , Stack} from "expo-router";
 import api from "../../src/api/apiClient";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function RolesScreen() {
   const [roles, setRoles] = useState([]);
@@ -27,26 +28,44 @@ export default function RolesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Roles</Text>
-
-      <TouchableOpacity style={styles.addButton} onPress={() => router.push("/roles/add")}>
-        <Text style={styles.addButtonText}>+ Add Role</Text>
-      </TouchableOpacity>
-
-      <FlatList
-        data={roles}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => router.push(`/roles/edit/${item.id}`)}
-          >
-            <Text style={styles.itemTitle}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
+     <>
+      {/* Custom header instead of "users/index" */}
+      <Stack.Screen
+        options={{
+          title: "Roles List",
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push("/roles/add")}
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons name="add-circle" size={26} color="#2196F3" />
+            </TouchableOpacity>
+          ),
+        }}
       />
-    </View>
+        <View style={styles.container}>
+          
+          {/* <Text style={styles.title}>Roles</Text>
+
+          <TouchableOpacity style={styles.addButton} onPress={() => router.push("/roles/add")}>
+            <Text style={styles.addButtonText}>+ Add Role</Text>
+          </TouchableOpacity> */}
+
+          <FlatList
+            data={roles}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => router.push(`/roles/edit/${item.id}`)}
+              >
+                <Text style={styles.itemTitle}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+       </>
+
   );
 }
 

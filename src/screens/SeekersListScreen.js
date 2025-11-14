@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/apiClient";
-import { useRouter } from "expo-router";
+import { AuthContext } from "../../src/context/AuthContext";
+import { useRouter, Stack } from "expo-router";
 import { Picker } from "@react-native-picker/picker"; // 👈 install with: npm install @react-native-picker/picker
 
 export default function SeekersListScreen() {
@@ -34,11 +35,37 @@ export default function SeekersListScreen() {
   const [selectedModerator, setSelectedModerator] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true); // first screen load
   const [currentFilters, setCurrentFilters] = useState({});
+  const [activeTypeTab, setActiveTypeTab] = useState("all"); // "all" | "1" | "2"
+  const [zones, setZones] = useState([]);
+  const { user } = useContext(AuthContext);
+  const role = Number(user.role_id);
+  const isDisabled = !(role === 2 || role === 3);
+
+
+  const modalTitle = role === 2 
+                    ? "Caller"
+                    : role === 3 
+                      ? "Moderator"
+                      : "Not Allowed";
+                      
+  const getButtonLabel = () => {
+    if (role === 2) return `Assign Caller (${selectedSeekers.length})`;
+    if (role === 3) return `Assign Moderator (${selectedSeekers.length})`;
+    return "Not Allowed";
+  };
+
+  useEffect(() => {
+    console.log("👤 Logged-in user from context:", user);
+    console.log("Permissions:", user?.permissions);
+    console.log("Zone:", user?.zone_id);
+    console.log("Role:", user?.role_id);
+
+  }, [user]);
 
   const [filters, setFilters] = useState({
     name: "",
     mobile: "",
-    zone: "",
+    zone_id: "",
     type: "",
     interested_in_followup: null,
     moderator_id: null,
@@ -66,8 +93,8 @@ export default function SeekersListScreen() {
         .join("&");
   
       const url = queryParams
-        ? `/seekers?${queryParams}&page=${pageNumber}`
-        : `/seekers?page=${pageNumber}`;
+        ? `/seekers?${queryParams}&zone_id=${user.zone_id}&role_id=${role}&id=${user.id}&page=${pageNumber}`
+        : `/seekers?zone_id=${user.zone_id}&role_id=${role}&id=${user.id}&page=${pageNumber}`;
   
       console.log("Fetching:", url); // 👈 check request actually fires
   
@@ -108,6 +135,18 @@ export default function SeekersListScreen() {
     fetchSeekers({}, 1, true);
   }, []);
 
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const response = await api.get("/zones");
+        setZones(response.data);
+      } catch (error) {
+        console.log("Error loading zones:", error);
+      }
+    };
+    fetchZones();
+  }, []);
+
   const filteredSeekers = seekers.filter(
     (s) =>
       s.first_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -144,7 +183,7 @@ export default function SeekersListScreen() {
     setFilters({
       name: "",
       mobile: "",
-      zone: "",
+      zone_id: "",
       type: "",
       interested_in_followup: null,
       moderator_id: null,
@@ -212,7 +251,7 @@ export default function SeekersListScreen() {
               <Ionicons name="person-remove-outline" size={20} color="#F44336" />
             )}
           </View>
-            <Text style={styles.city}>{item.zone}, {item.city || "City N/A"}</Text>           
+            <Text style={styles.city}>{item.zone?.name}, {item.city || "City N/A"}</Text>           
           </View>
         </View>
   
@@ -233,7 +272,10 @@ export default function SeekersListScreen() {
   
   const fetchModerators = async () => {
     try {
-      const response = await api.get("/users?role_id=1");
+
+      const url = `/users?user_type=seeker&role_id=${role}`;
+      console.log("Fetching Moderators:", url); 
+      const response = await api.get(url);
       setModerators(response.data);
     } catch (error) {
       console.error("Error fetching moderators:", error);
@@ -248,7 +290,7 @@ export default function SeekersListScreen() {
         moderator_id: selectedModerator,
         seeker_ids: selectedSeekers,
       });
-      Alert.alert("Success", "Moderator assigned successfully!");
+      Alert.alert("Success", `${modalTitle} assigned successfully!`);
       setModeratorModalVisible(false);
       setSelectedSeekers([]);
       fetchSeekers(); // refresh list
@@ -260,8 +302,27 @@ export default function SeekersListScreen() {
   
 
   return (
+
+    <>
+      {/* Custom header instead of "users/index" */}
+      <Stack.Screen
+        options={{
+          title: "Seekers List",
+          headerRight: () => (
+            <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setFilterVisible(true)}
+          >
+            <Ionicons name="filter" size={18} color="#fff" />
+            <Text style={styles.filterText}>Filter</Text>
+          </TouchableOpacity>
+          ),
+        }}
+      />
+
     <View style={styles.container}>
-      <View style={styles.headerRow}>
+     
+      {/* <View style={styles.headerRow}>
         
         <TouchableOpacity
           style={styles.filterButton}
@@ -272,8 +333,38 @@ export default function SeekersListScreen() {
         </TouchableOpacity>
 
 
-      </View>
+      </View> */}
 
+      <View style={styles.tabsContainer}>
+        {[
+          { label: "All", value: "all" },
+          { label: "Pratishthan", value: "1" },
+          { label: "Public", value: "2" },
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.value}
+            style={[styles.tab, activeTypeTab === tab.value && styles.activeTab]}
+            onPress={() => {
+              setActiveTypeTab(tab.value);
+              const newFilters = {
+                ...currentFilters,
+                type: tab.value === "all" ? "" : tab.value,
+              };
+              setCurrentFilters(newFilters);
+              fetchSeekers(newFilters, 1, true);
+            }}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTypeTab === tab.value && styles.activeTabText,
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <FlatList
         data={seekers}
@@ -292,16 +383,28 @@ export default function SeekersListScreen() {
 
       {selectedSeekers.length > 0 && (
         <TouchableOpacity
-          style={styles.assignButton}
+          style={[
+            styles.assignButton,
+            isDisabled && { backgroundColor: "#ccc" } // disabled UI styling
+          ]}
+          disabled={isDisabled}
           onPress={() => {
-            fetchModerators();
-            setModeratorModalVisible(true);
+            if (!isDisabled) {
+              fetchModerators();
+              setModeratorModalVisible(true);
+            }
           }}
         >
-          <Text style={styles.assignButtonText}>
-            Assign Moderator ({selectedSeekers.length})
+          <Text
+            style={[
+              styles.assignButtonText,
+              isDisabled && { color: "#888" }
+            ]}
+          >
+            {getButtonLabel()}
           </Text>
         </TouchableOpacity>
+
       )}
 
       {/* 🪟 Filter Modal */}
@@ -343,12 +446,20 @@ export default function SeekersListScreen() {
                 onChangeText={(text) => setFilters({ ...filters, mobile: text })}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Zone"
-                value={filters.zone}
-                onChangeText={(text) => setFilters({ ...filters, zone: text })}
-              />
+              <View style={styles.inputContainer}>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={filters.zone_id}
+                    onValueChange={(value) => setFilters({ ...filters, zone_id: value })}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Zone" value="" />
+                    {zones.map((zone) => (
+                      <Picker.Item key={zone.id} label={zone.name} value={zone.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
 
               <View style={styles.inputContainer}>
                 <View style={styles.pickerWrapper}>
@@ -670,7 +781,7 @@ export default function SeekersListScreen() {
 
       <Modal visible={moderatorModalVisible} animationType="slide">
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Select Moderator</Text>
+          <Text style={styles.modalTitle}>Select {modalTitle}</Text>
 
           <ScrollView>
             {moderators.map((mod) => (
@@ -683,7 +794,7 @@ export default function SeekersListScreen() {
                 onPress={() => setSelectedModerator(mod.id)}
               >
                 <Text>{mod.name}</Text>
-                <Text style={styles.subText}>{mod.zone}</Text>
+                <Text style={styles.subText}>{mod.zone?.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -696,12 +807,14 @@ export default function SeekersListScreen() {
       </Modal>
 
     </View>
+
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 20, paddingTop: 15 },
-  title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
+  title: { fontSize: 18, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
   searchBox: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -717,10 +830,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardHeader: { flexDirection: "row", alignItems: "center" },
-  name: { fontSize: 18, fontWeight: "bold" },
-  city: { fontSize: 14, color: "#666" },
+  name: { fontSize: 14, fontWeight: "bold" },
+  city: { fontSize: 12, color: "#666" },
   cardFooter: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  mobile: { fontSize: 14, marginLeft: 6, color: "#333" },
+  mobile: { fontSize: 12, marginLeft: 6, color: "#333" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
   headerRow: {
     flexDirection: "row",
@@ -730,7 +843,7 @@ const styles = StyleSheet.create({
   },
   
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#333",
   },
@@ -748,7 +861,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginLeft: 5,
     fontWeight: "500",
-    fontSize: 14,
+    fontSize: 10,
   },
   
   modalOverlay: {
@@ -776,8 +889,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  modalTitle: { fontSize: 18, fontWeight: "bold" },
-  closeButton: { fontSize: 22, color: "#999" },
+  modalTitle: { fontSize: 12, fontWeight: "bold" },
+  closeButton: { fontSize: 18, color: "#999" },
   section: { marginVertical: 10 },
   switchRow: {
     flexDirection: "row",
@@ -817,7 +930,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   closeText: {
-    fontSize: 18,
+    fontSize: 12,
     color: "#333",
     fontWeight: "600",
   },
@@ -835,7 +948,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "bold",
     marginTop: 15,
     marginBottom: 8,
@@ -865,7 +978,7 @@ const styles = StyleSheet.create({
   },
   assignButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: "bold",
   },
   modalContent: {
@@ -874,7 +987,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: "bold",
     marginBottom: 10,
   },
@@ -890,7 +1003,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F9FF",
   },
   row: { flexDirection: "row", alignItems: "center" },
-  name: { fontSize: 16, fontWeight: "500" },
+  name: { fontSize: 12, fontWeight: "500" },
   subText: { fontSize: 13, color: "#555" },
     checkboxContainer: {
       marginRight: 8,
@@ -911,5 +1024,32 @@ const styles = StyleSheet.create({
       color: "#fff",
       fontWeight: "600",
     },
+    tabsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginVertical: 10,
+      backgroundColor: "#f1f1f1",
+      borderRadius: 8,
+      padding: 5,
+    },
+    tab: {
+      flex: 1,
+      alignItems: "center",
+      paddingVertical: 8,
+      borderRadius: 6,
+    },
+    activeTab: {
+      backgroundColor: "#2196F3",
+    },
+    tabText: {
+      fontSize: 11,
+      color: "#555",
+      fontWeight: "500",
+    },
+    activeTabText: {
+      color: "#fff",
+      fontWeight: "600",
+    },
+    
 });
   

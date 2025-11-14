@@ -159,7 +159,7 @@ export default function UsersListScreen() {
               <Ionicons name="person-remove-outline" size={20} color="#F44336" />
             )}
           </View>
-            <Text style={styles.city}>{item.zone}, {item.city || "City N/A"}</Text>           
+            <Text style={styles.city}>{item.zone?.name}, {item.city || "City N/A"}</Text>           
           </View>
         </View>
   

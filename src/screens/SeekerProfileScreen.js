@@ -93,7 +93,7 @@ export default function SeekerProfileScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Zone:</Text>
-                    <Text style={styles.value}>{seeker.zone || "N/A"}</Text>
+                    <Text style={styles.value}>{seeker.zone.name || "N/A"}</Text>
                 </View>
 
                 <View style={styles.section}>
