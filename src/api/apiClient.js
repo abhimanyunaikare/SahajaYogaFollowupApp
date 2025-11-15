@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Update this with your Laravel API IP & port
 const api = axios.create({
-  baseURL: 'http://192.168.170.131:8000/api', // 👈 your laptop’s IP
+  baseURL: 'http://192.168.95.131:8000/api', // 👈 your laptop’s IP
   timeout: 5000,
 });
 

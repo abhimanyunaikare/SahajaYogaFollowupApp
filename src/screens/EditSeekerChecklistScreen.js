@@ -7,10 +7,14 @@ import {
   Switch,
   Button,
   Alert,
-  ActivityIndicator,
   StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter , Stack} from "expo-router";
 import api from "../api/apiClient";
 
 export default function EditChecklistScreen() {
@@ -18,40 +22,39 @@ export default function EditChecklistScreen() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  // const [checklist, setChecklist] = useState(null);
 
+  const [checklist, setChecklist] = useState({});
 
-  const [checklist, setChecklist] = useState({
-    attended_session_1: false,
-    session_1_comments: "",
-    attended_session_2: false,
-    session_2_comments: "",
-    attended_session_3: false,
-    session_3_comments: "",
-    attended_session_4: false,
-    session_4_comments: "",
-    feeling_vibrations: false,
-    attended_centres: false,
-    attended_seminar: false,
-    attended_puja: false,
-    month_1: false,
-    month_1_comments: "",
-    month_2: false,
-    month_2_comments: "",
-    month_3: false,
-    month_3_comments: "",
-    month_4: false,
-    month_4_comments: "",
-  });
   
 
+  const handleChange = (key, value) => {
+    setChecklist(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+  
   useEffect(() => {
     const fetchChecklist = async () => {
       try {
         const response = await api.get(`/seekers/${id}/checklist`);
-        // setChecklist(response.data[0]); // assuming array with one checklist object
-        const data = response.data.checklist?.[0] || {};
-        setChecklist((prev) => ({ ...prev, ...data }));
+  
+        const data = response.data || {};
+        console.log("📦 Full Seeker Checklist:", response.data);
+
+        // Convert 0/1 to true/false
+        const normalized = Object.fromEntries(
+          Object.entries(data).map(([key, value]) => [
+            key,
+            value === 1 ? true :
+            value === 0 ? false :
+            value ?? ""
+          ])
+        );
+                
+  
+        setChecklist(prev => ({ ...prev, ...normalized }));
+  
       } catch (error) {
         console.log(error.response?.data || error.message);
         Alert.alert("Error", "Failed to load checklist");
@@ -59,24 +62,26 @@ export default function EditChecklistScreen() {
         setLoading(false);
       }
     };
+  
     fetchChecklist();
   }, [id]);
-
-  const handleChange = (key, value) => {
-    setChecklist({ ...checklist, [key]: value });
-  };
-
+  
   const handleSave = async () => {
     try {
       await api.put(`/seekers/${id}/checklist`, checklist);
       Alert.alert("Success", "Checklist updated successfully!");
-      router.back();
+      const url = `/seeker/${id}`;
+      console.log('url path',url);
+      router.replace(url);
     } catch (error) {
       console.log(error.response?.data || error.message);
       Alert.alert("Error", "Failed to update checklist");
     }
   };
 
+  useEffect(() => {
+    console.log("Updated Checklist:", checklist);
+  }, [checklist]);
 
   if (loading) {
     return (
@@ -87,120 +92,136 @@ export default function EditChecklistScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 80 }}>
-      <Text style={styles.title}>Edit Seeker Checklist</Text>
 
-      {/* Pratishthan Sessions */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>PRATISHTHAN SESSIONS</Text>
+      <>
+       <Stack.Screen options={{ title: "Edit Seeker Checklist" }} />
 
-        <View>
-          <View>
-            <ChecklistSwitch
-              label="Attended 1st Session"
-              value={checklist.attended_session_1}
-              onChange={(val) => handleChange("attended_session_1", val)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="1st Session Comments"
-              value={checklist.session_1_comments || ""}
-              onChangeText={(text) => handleChange("session_1_comments", text)}
-            />
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={{ flex: 1 }}>
+              <ScrollView
+                style={styles.container}
+                contentContainerStyle={{ paddingBottom: 200 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Pratishthan Sessions */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionTitle}>PRATISHTHAN SESSIONS</Text>
 
-          <View>
-            <ChecklistSwitch
-              label="Attended 2nd Session"
-              value={checklist.attended_session_2}
-              onChange={(val) => handleChange("attended_session_2", val)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="2nd Session Comments"
-              value={checklist.session_2_comments || ""}
-              onChangeText={(text) => handleChange("session_2_comments", text)}
-            />
-          </View>
+                  <View>
+                    <View>
+                      <ChecklistSwitch
+                        label="Attended 1st Session"
+                        value={checklist.attended_session_1}
+                        onChange={(val) => handleChange("attended_session_1", val)}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="1st Session Comments"
+                        value={checklist.session_1_comments || ""}
+                        onChangeText={(text) => handleChange("session_1_comments", text)}
+                      />
+                    </View>
 
-          <View>
-            <ChecklistSwitch
-              label="Attended 3rd Session"
-              value={checklist.attended_session_3}
-              onChange={(val) => handleChange("attended_session_3", val)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="3rd Session Comments"
-              value={checklist.session_3_comments || ""}
-              onChangeText={(text) => handleChange("session_3_comments", text)}
-            />
-          </View>
+                    <View>
+                      <ChecklistSwitch
+                        label="Attended 2nd Session"
+                        value={checklist.attended_session_2}
+                        onChange={(val) => handleChange("attended_session_2", val)}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="2nd Session Comments"
+                        value={checklist.session_2_comments || ""}
+                        onChangeText={(text) => handleChange("session_2_comments", text)}
+                      />
+                    </View>
 
-          <View>
-            <ChecklistSwitch
-              label="Attended 4th Session"
-              value={checklist.attended_session_4}
-              onChange={(val) => handleChange("attended_session_4", val)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="4th Session Comments"
-              value={checklist.session_4_comments || ""}
-              onChangeText={(text) => handleChange("session_4_comments", text)}
-            />
-          </View>
-        </View>
+                    <View>
+                      <ChecklistSwitch
+                        label="Attended 3rd Session"
+                        value={checklist.attended_session_3}
+                        onChange={(val) => handleChange("attended_session_3", val)}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="3rd Session Comments"
+                        value={checklist.session_3_comments || ""}
+                        onChangeText={(text) => handleChange("session_3_comments", text)}
+                      />
+                    </View>
 
-      </View>
+                    <View>
+                      <ChecklistSwitch
+                        label="Attended 4th Session"
+                        value={checklist.attended_session_4}
+                        onChange={(val) => handleChange("attended_session_4", val)}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="4th Session Comments"
+                        value={checklist.session_4_comments || ""}
+                        onChangeText={(text) => handleChange("session_4_comments", text)}
+                      />
+                    </View>
+                  </View>
 
-      {/* General Checklist */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>FOLLOW-UP CHECKLIST</Text>
+                </View>
 
-        <ChecklistSwitch
-          label="Feeling Vibrations"
-          value={checklist.feeling_vibrations}
-          onChange={(val) => handleChange("feeling_vibrations", val)}
-        />
+                {/* General Checklist */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionTitle}>FOLLOW-UP CHECKLIST</Text>
 
-        <ChecklistSwitch
-          label="Attended Centre"
-          value={checklist.attended_centres}
-          onChange={(val) => handleChange("attended_centres", val)}
-        />
+                  <ChecklistSwitch
+                    label="Feeling Vibrations"
+                    value={checklist.feeling_vibrations}
+                    onChange={(val) => handleChange("feeling_vibrations", val)}
+                  />
 
-        <ChecklistSwitch
-          label="Attended Seminar"
-          value={checklist.attended_seminar}
-          onChange={(val) => handleChange("attended_seminar", val)}
-        />
+                  <ChecklistSwitch
+                    label="Attended Centre"
+                    value={checklist.attended_centres}
+                    onChange={(val) => handleChange("attended_centres", val)}
+                  />
 
-        <ChecklistSwitch
-          label="Attended Puja"
-          value={checklist.attended_puja}
-          onChange={(val) => handleChange("attended_puja", val)}
-        />
+                  <ChecklistSwitch
+                    label="Attended Seminar"
+                    value={checklist.attended_seminar}
+                    onChange={(val) => handleChange("attended_seminar", val)}
+                  />
 
-        {[1, 2, 3, 4].map((n) => (
-          <View key={n}>
-            <ChecklistSwitch
-              label={`Attended ${n}ᵗʰ Month`}
-              value={checklist[`month_${n}`]}
-              onChange={(val) => handleChange(`month_${n}`, val)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder={`${n}ᵗʰ Month Comments`}
-              value={checklist[`month_${n}_comments`] || ""}
-              onChangeText={(text) => handleChange(`month_${n}_comments`, text)}
-            />
-          </View>
-        ))}
-      </View>
+                  <ChecklistSwitch
+                    label="Attended Puja"
+                    value={checklist.attended_puja}
+                    onChange={(val) => handleChange("attended_puja", val)}
+                  />
 
-      <Button title="Save Checklist" onPress={handleSave} />
-    </ScrollView>
+                  {[1, 2, 3, 4].map((n) => (
+                    <View key={n}>
+                      <ChecklistSwitch
+                        label={`Attended ${n}ᵗʰ Month`}
+                        value={checklist[`month_${n}`]}
+                        onChange={(val) => handleChange(`month_${n}`, val)}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`${n}ᵗʰ Month Comments`}
+                        value={checklist[`month_${n}_comments`] || ""}
+                        onChangeText={(text) => handleChange(`month_${n}_comments`, text)}
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                <Button title="Save Checklist" onPress={handleSave} />
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </>
   );
 }
 

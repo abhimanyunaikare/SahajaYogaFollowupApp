@@ -35,6 +35,7 @@ export default function EditSeekerScreen() {
     occupation: "",
     interested_in_followup: false,
     called: false,
+    move_to_zonal_monitoring: false,
   });
 
   const handleChange = (key, value) => setForm({ ...form, [key]: value });
@@ -226,26 +227,55 @@ export default function EditSeekerScreen() {
           </View>
         </View>
 
-        {/* 🌟 Seeker called by Callling Team */}
-        <View style={styles.switchContainer}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 20 }}>
+        
+        {/* SWITCH 1 – Seeker Called */}
+        <View style={[styles.switchContainer, { flex: 1 }]}>
           <Text style={styles.switchLabel}>Seeker Called</Text>
           <View style={styles.switchWithSides}>
-            <Text
-              style={[styles.sideText, !form.called && styles.activeOff]}
-            >
-              No
-            </Text>
+            <Text style={[styles.sideText, !form.called && styles.activeOff]}>No</Text>
+
             <Switch
               value={form.called}
               onValueChange={(val) => handleChange("called", val)}
               thumbColor={form.called ? "#2196F3" : "#f4f3f4"}
               trackColor={{ false: "#ccc", true: "#81b0ff" }}
             />
-            <Text style={[styles.sideText, form.called && styles.activeOn]}>
+
+            <Text style={[styles.sideText, form.called && styles.activeOn]}>Yes</Text>
+          </View>
+        </View>
+
+        {/* SWITCH 2 – Zonal Monitor */}
+        <View style={[styles.switchContainer, { flex: 1 }]}>
+          <Text style={styles.switchLabel}>Zonal Monitoring</Text>
+          <View style={styles.switchWithSides}>
+            <Text
+              style={[styles.sideText, !form.move_to_zonal_monitoring && styles.activeOff]}
+            >
+              No
+            </Text>
+
+            <Switch
+              value={form.move_to_zonal_monitoring}
+              onValueChange={(val) => handleChange("move_to_zonal_monitoring", val)}
+              thumbColor={form.move_to_zonal_monitoring ? "#2196F3" : "#f4f3f4"}
+              trackColor={{ false: "#ccc", true: "#81b0ff" }}
+            />
+
+            <Text
+              style={[
+                styles.sideText,
+                form.move_to_zonal_monitoring && styles.activeOn
+              ]}
+            >
               Yes
             </Text>
           </View>
         </View>
+
+      </View>
+
 
         <Button title="Update Seeker" onPress={handleUpdate} />
       </ScrollView>

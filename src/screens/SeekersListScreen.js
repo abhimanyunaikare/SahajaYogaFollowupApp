@@ -289,6 +289,7 @@ export default function SeekersListScreen() {
       await api.post("/seekers/assign-moderator", {
         moderator_id: selectedModerator,
         seeker_ids: selectedSeekers,
+        role: role, 
       });
       Alert.alert("Success", `${modalTitle} assigned successfully!`);
       setModeratorModalVisible(false);
