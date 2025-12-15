@@ -1,7 +1,64 @@
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import React, { useEffect, useLayoutEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View , Linking} from "react-native";
 import api from "../api/apiClient";
+// Import useFocusEffect from the underlying React Navigation package
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons'; 
+
+
+// Helper component for displaying Yes/No status as a badge
+const StatusBadge = ({ isTrue }) => (
+  <View style={[styles.statusBadge, isTrue ? styles.statusYes : styles.statusNo]}>
+    <Text style={styles.badgeText}>{isTrue ? "Yes" : "No"}</Text>
+  </View>
+);
+
+// Helper component for the main profile sections with icons
+const ProfileDetail = ({ iconName, label, value }) => (
+  <View style={styles.detailRow}>
+    <View style={styles.detailContent}>
+      <Ionicons name={iconName} size={20} color="#007AFF" style={styles.detailIcon} />
+      <View>
+        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={styles.detailValue}>{value}</Text>
+      </View>
+    </View>
+  </View>
+);
+
+// Helper component for checklist items
+const ChecklistItem = ({ label, isTrue, comment }) => (
+  <View style={styles.checklistItem}>
+    <View style={styles.checklistRow}>
+      <Text style={styles.checklistLabel}>{label}</Text>
+      <StatusBadge isTrue={isTrue} />
+    </View>
+    {comment && comment !== "N/A" && (
+      <View style={styles.commentContainer}>
+        <FontAwesome5 name="comment-dots" size={14} color="#555" />
+        <Text style={styles.commentText}>{comment}</Text>
+      </View>
+    )}
+  </View>
+);
+
+// Function to handle the call action
+const handleCall = (phoneNumber) => {
+  // Format the number to ensure it has the 'tel:' scheme
+  const url = `tel:${phoneNumber}`;
+  
+  // Check if the device can open the URL (i.e., make calls)
+  Linking.canOpenURL(url)
+    .then(supported => {
+      if (!supported) {
+        Alert.alert('Error', 'Phone calls are not supported on this device.');
+      } else {
+        return Linking.openURL(url);
+      }
+    })
+    .catch(err => console.error('An error occurred', err));
+};
 
 export default function SeekerProfileScreen() {
   const [seeker, setSeeker] = useState(null);
@@ -11,51 +68,65 @@ export default function SeekerProfileScreen() {
   const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchSeeker = async () => {
-      try {
-        const response = await api.get(`/seekers/${id}`);
-        console.log("📦 Full Seeker Response:", response.data);
+  // Helper function to fetch the seeker data
+  const fetchSeeker = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(`/seekers/${id}`);
+      setSeeker(response.data);        
+    } catch (error) {
+      console.error("Error fetching seeker:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setSeeker(response.data);        
-      } catch (error) {
-        console.log("Error fetching seeker:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSeeker();
-  }, [id]);
+  // 🚀 FIX: Use useFocusEffect instead of useEffect
+  // This hook runs every time the screen comes into focus (initial load and navigating back)
+  useFocusEffect(
+    // Wrap the fetch call in useCallback to prevent infinite re-renders
+    useCallback(() => {
+      fetchSeeker();
+      
+      // Return an optional cleanup function
+      return () => {
+        // Any cleanup logic goes here
+      };
+    }, [id]) // Re-run if ID changes
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {/* 🏠 Home Button */}
-          {/* <TouchableOpacity
-            onPress={() => router.replace("/")}
-            style={{ marginRight: 15 }}
-          >
-            <Text style={{ color: "#007AFF", fontWeight: "600" }}>Home</Text>
-          </TouchableOpacity>
-   */}
           {/* ✏️ Edit Button */}
           <TouchableOpacity
             onPress={() => router.push(`/seeker/edit/${id}`)}
-            style={{ marginRight: 1 }}
+            style={{ marginRight: 10 }}
           >
-            <Text style={{ color: "#007AFF", fontWeight: "600" }}>Edit</Text>
+            <Ionicons name="create-outline" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
       ),
       title: "Seeker Details",
     });
-  }, [navigation, id]);
+  }, [navigation, id, router]); // Added router dependency
+
+  // Helper function for date formatting
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
+  };
   
+  // Conditionally render based on loading/data status
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -63,255 +134,349 @@ export default function SeekerProfileScreen() {
   if (!seeker) {
     return (
       <View style={styles.loader}>
-        <Text>No seeker found</Text>
+        <Text style={styles.noSeekerText}>No seeker found</Text>
       </View>
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+  const checklist = seeker.checklist || {};
 
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}
-      showsVerticalScrollIndicator={false}>
+  return (
+    <View style={{ flex: 1, backgroundColor: "#F9F9F9" }}>
+
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+            {/* --- Main Profile Section --- */}
             <Text style={styles.title}>{seeker.first_name} {seeker.last_name}</Text>
 
             <View style={styles.card}>
-                <View style={styles.section}>
-                    <Text style={styles.label}>Mobile:</Text>
-                    <Text style={styles.value}>{seeker.mobile}</Text>
-                </View>
+            <TouchableOpacity 
+                // Add the onPress handler here, passing the mobile number
+                onPress={() => handleCall(seeker.mobile)}
+                // Optional: Add a style to make it look clickable, if needed
+                style={{ paddingVertical: 5 }} 
+            >
+                <ProfileDetail 
+                    iconName="call-outline" 
+                    label="Mobile" 
+                    value={seeker.mobile} 
+                    valueStyle={styles.mobileNumber}
+                />
+            </TouchableOpacity>
+              
+              <View style={styles.separator} />
 
-                <View style={styles.section}>
-                    <Text style={styles.label}>Email:</Text>
-                    <Text style={styles.value}>{seeker.email || "N/A"}</Text>
-                </View>
+              <ProfileDetail 
+                iconName="location-outline" 
+                label="City" 
+                value={seeker.city || "N/A"} 
+              />
+              <ProfileDetail 
+                iconName="map-outline" 
+                label="Zone" 
+                value={seeker.zone?.name || "N/A"} 
+              />
+              <ProfileDetail 
+                iconName="business-outline" 
+                label="Type" 
+                value={seeker.type === 1 ? "Pratishthan Seeker" : "Public Program Seeker"} 
+              />
+              <ProfileDetail 
+                iconName="briefcase-outline" 
+                label="Occupation" 
+                value={seeker.occupation || "N/A"} 
+              />
+              
+              <View style={styles.separator} />
 
-                <View style={styles.section}>
-                    <Text style={styles.label}>City:</Text>
-                    <Text style={styles.value}>{seeker.city || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Zone:</Text>
-                    <Text style={styles.value}>{seeker.zone.name || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>{seeker.type === 1 ? "Pratishthan" : "Public Program"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Occupation:</Text>
-                    <Text style={styles.value}>{seeker.occupation || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Interested in Follow-up:</Text>
-                    <Text style={styles.value}>{seeker.interested_in_followup ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Entry Date:</Text>
-                    <Text style={styles.value}>{seeker.created_at
-                    ? new Date(seeker.created_at).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Sahajayogi Responsible:</Text>
-                    <Text style={styles.value}> {seeker.moderator
-    ? `🧑‍💼 ${seeker.moderator.name}`
-    : '🚫 Moderator not assigned'} </Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Updated Date:</Text>
-                    <Text style={styles.value}>{seeker.updated_at
-                      ? new Date(seeker.updated_at).toLocaleString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "N/A"}</Text>
-                </View>
+              <ProfileDetail 
+                iconName="person-circle-outline" 
+                label="Sahajayogi Responsible" 
+                value={seeker.moderator ? seeker.moderator.name : 'Moderator not assigned'} 
+              />
+              
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateText}>
+                  Entry Date: **{formatDate(seeker.created_at)}**
+                </Text>
+                <Text style={styles.dateText}>
+                  Last Updated: **{formatDate(seeker.updated_at)}**
+                </Text>
+              </View>
+              
             </View>
 
-            <Text style={styles.checklistTitle}>Checklist</Text>
-            
-            {/* 👇 Edit Checklist button */}
+            {/* --- Follow-up & Checklist Button --- */}
+            <View style={styles.followUpContainer}>
+                <Text style={styles.followUpLabel}>Interested in Follow-up:</Text>
+                <StatusBadge isTrue={seeker.interested_in_followup} />
+            </View>
+
             <TouchableOpacity
-            style={styles.editChecklistButton}
-            onPress={() => router.push(`/seeker/checklist/${id}`)}
+                style={styles.editChecklistButton}
+                onPress={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}`)}
             >
+                <MaterialIcons name="playlist-add-check" size={20} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={styles.editChecklistText}>Edit Checklist</Text>
             </TouchableOpacity>
-
-            <View style={styles.card}>
-                <Text style={styles.sectonlabel}>PRATISHTHAN SESSIONS:</Text>
-                
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 1st Session:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_session_1 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>1st Session Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].session_1_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 2nd Session:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_session_2 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>2nd Session Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].session_2_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 3rd Session:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_session_3 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>3rd Session Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].session_3_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 4th Session:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_session_4 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>4th Session Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].session_4_comments || "N/A"}</Text>
-                </View>
+           
+            {/* --- Checklist - Pratishthan Sessions --- */}
+            <Text style={styles.sectionHeader}>🧘 Pratishthan Sessions</Text>
+            <View style={styles.checklistCard}>
+                <ChecklistItem 
+                    label="Attended 1st Session" 
+                    isTrue={checklist.attended_session_1} 
+                    comment={checklist.session_1_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 2nd Session" 
+                    isTrue={checklist.attended_session_2} 
+                    comment={checklist.session_2_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 3rd Session" 
+                    isTrue={checklist.attended_session_3} 
+                    comment={checklist.session_3_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 4th Session" 
+                    isTrue={checklist.attended_session_4} 
+                    comment={checklist.session_4_comments} 
+                />
             </View>
 
-            <View style={styles.cardChecklist}>
+            {/* --- Checklist - General & Monthly Follow-up --- */}
+            <Text style={styles.sectionHeader}>✅ General Follow-up</Text>
+            <View style={styles.checklistCardSecondary}>
+                <ChecklistItem 
+                    label="Feeling Vibrations" 
+                    isTrue={checklist.feeling_vibrations} 
+                />
+                <ChecklistItem 
+                    label="Attended Center" 
+                    isTrue={checklist.attended_centres} 
+                />
+                <ChecklistItem 
+                    label="Attended Seminar" 
+                    isTrue={checklist.attended_seminar} 
+                />
+                <ChecklistItem 
+                    label="Attended Puja" 
+                    isTrue={checklist.attended_puja} 
+                />
+            </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.label}>Feeling Vibrations:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].feeling_vibrations ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended Center:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_centres ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended Seminar:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_seminar ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended Puja:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].attended_puja ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 1st Month:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_1 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>1st Month Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_1_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 2nd Month:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_2 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>2nd Month Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_2_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 3rd Month:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_3 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>3rd Month Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_3_comments || "N/A"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>Attended 4th Month:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_4 ? "Yes" : "No"}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.label}>4th Month Comments:</Text>
-                    <Text style={styles.value}>{seeker.checklist[0].month_4_comments || "N/A"}</Text>
-                </View>
+            <Text style={styles.sectionHeader}>🗓️ Monthly Follow-up</Text>
+            <View style={styles.checklistCardSecondary}>
+                <ChecklistItem 
+                    label="Attended 1st Month" 
+                    isTrue={checklist.month_1} 
+                    comment={checklist.month_1_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 2nd Month" 
+                    isTrue={checklist.month_2} 
+                    comment={checklist.month_2_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 3rd Month" 
+                    isTrue={checklist.month_3} 
+                    comment={checklist.month_3_comments} 
+                />
+                <ChecklistItem 
+                    label="Attended 4th Month" 
+                    isTrue={checklist.month_4} 
+                    comment={checklist.month_4_comments} 
+                />
             </View>
         </ScrollView>
     </View>
-
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
-  cardHeader: { flexDirection: "row", alignItems: "center" },
-  card: {
-    backgroundColor: "#E3F2FD",
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 12,
-    elevation: 2,
-  },
-  cardChecklist: {
-    backgroundColor: "#f5e3fd",
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 12,
-    elevation: 2,
-  },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 20, backgroundColor: "#F9F9F9" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  section: { marginBottom: 12 },
-  label: { fontSize: 16, fontWeight: "600", color: "#333" },
-  sectonlabel: { fontSize: 16, fontWeight: "300", color: "#33334", paddingBottom: 12 },
-  value: { fontSize: 16, color: "#555", marginTop: 2 },
-  checklistTitle: { fontSize: 20, fontWeight: "bold", marginTop: 20, marginBottom: 10 },
-  checklistItem: { padding: 10, backgroundColor: "#E3F2FD", borderRadius: 8, marginBottom: 8 },
-  editChecklistButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 10,
+  noSeekerText: { fontSize: 18, color: "#555" },
+  
+  // --- Main Profile Card Styling ---
+  title: { 
+    fontSize: 28, 
+    fontWeight: "bold", 
+    color: "#1A237E", // Deep Indigo for prominence
+    marginBottom: 15 
+  },
+  card: {
+    backgroundColor: "#FFFFFF", // White card background
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  detailRow: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EEE',
+  },
+  detailContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailIcon: {
+    marginRight: 15,
+    width: 20, // ensure consistent spacing for icon
+  },
+  detailLabel: { 
+    fontSize: 14, 
+    fontWeight: "500", 
+    color: "#616161" // Greyish label
+  },
+  detailValue: { 
+    fontSize: 16, 
+    color: "#212121", 
+    marginTop: 2, 
+    fontWeight: "600" 
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 10,
+  },
+  dateInfo: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+  },
+  dateText: { 
+    fontSize: 13, 
+    color: "#757575", 
+    marginBottom: 4 
+  },
+
+  // --- Follow-up & Button Styling ---
+  followUpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    backgroundColor: '#FFFDE7', // Light yellow for attention
+    borderRadius: 10,
+    marginBottom: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: '#FFC107',
+  },
+  followUpLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  editChecklistButton: {
+    backgroundColor: "#007AFF", // Standard iOS Blue
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 20,
+    elevation: 3,
   },
   editChecklistText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 16,
   },
-  checklistTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 20,
-    marginBottom: 10,
+
+  // --- Checklist Styling ---
+  sectionHeader: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    color: "#424242", 
+    marginTop: 15, 
+    marginBottom: 10 
+  },
+  checklistCard: {
+    backgroundColor: "#E8F5E9", // Very light green for Pratishthan
+    borderRadius: 14,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 1,
+  },
+  checklistCardSecondary: {
+    backgroundColor: "#E3F2FD", // Very light blue for General/Monthly
+    borderRadius: 14,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 1,
   },
   checklistItem: {
-    padding: 10,
-    backgroundColor: "#E3F2FD",
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#CFD8DC',
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  checklistLabel: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+    flexShrink: 1,
+    marginRight: 10,
   },
   
+  // Badge Styling
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 15,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  statusYes: {
+    backgroundColor: "#4CAF50", // Green
+  },
+  statusNo: {
+    backgroundColor: "#F44336", // Red
+  },
+  badgeText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+
+  // Comment Styling
+  commentContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#CFD8DC',
+    marginLeft: 5,
+    paddingLeft: 5,
+  },
+  commentText: {
+    fontSize: 13,
+    color: '#555',
+    marginLeft: 8,
+    fontStyle: 'italic',
+    flexShrink: 1,
+  },
+  mobileNumber: {
+    color: '#007AFF',             // Use a link color (iOS blue)
+    textDecorationLine: 'underline', // Add the underline cue
+    fontWeight: '600',
+},
 });

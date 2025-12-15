@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   ScrollView,
   Switch,
-  Button,
   Alert,
   StyleSheet,
   ActivityIndicator,
@@ -13,19 +12,63 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  TouchableOpacity,
 } from "react-native";
-import { useLocalSearchParams, useRouter , Stack} from "expo-router";
+import { useLocalSearchParams, useRouter , useNavigation} from "expo-router";
 import api from "../api/apiClient";
+import { FontAwesome5 } from '@expo/vector-icons'; // Assuming you have vector icons installed
+
+// Helper component for ordinal numbers (1st, 2nd, 3rd, 4th)
+const getOrdinal = (n) => {
+    if (n === 1) return '1st';
+    if (n === 2) return '2nd';
+    if (n === 3) return '3rd';
+    if (n === 4) return '4th';
+    return `${n}th`;
+};
+
+// 💅 Optimized ChecklistSwitch Component
+const ChecklistSwitch = ({ label, value, onChange, isLast }) => (
+  <View style={[styles.switchRow, isLast && styles.noBorder]}>
+    <Text style={styles.switchLabel}>{label}</Text>
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      thumbColor={value ? "#007AFF" : "#F5F5F5"}
+      trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
+    />
+  </View>
+);
+
+// 💅 Optimized Switch and Comment Group Component
+const SwitchAndComment = ({ label, switchValue, onSwitchChange, commentValue, onCommentChange, ordinal }) => (
+  <View style={styles.groupContainer}>
+    <ChecklistSwitch
+      label={label}
+      value={switchValue}
+      onChange={onSwitchChange}
+    />
+    <TextInput
+      style={styles.commentInput}
+      placeholder={`${ordinal} Comments (Optional)`}
+      placeholderTextColor="#A0A0A0"
+      value={commentValue || ""}
+      onChangeText={onCommentChange}
+      multiline={true} // Allow multiple lines for comments
+      numberOfLines={3}
+    />
+  </View>
+);
+
 
 export default function EditChecklistScreen() {
-  const { id } = useLocalSearchParams();
+  // ... (unchanged state and hooks)
+  const { id, name } = useLocalSearchParams(); 
   const router = useRouter();
+  const navigation = useNavigation();
 
   const [loading, setLoading] = useState(true);
-
   const [checklist, setChecklist] = useState({});
-
-  
 
   const handleChange = (key, value) => {
     setChecklist(prev => ({
@@ -40,7 +83,6 @@ export default function EditChecklistScreen() {
         const response = await api.get(`/seekers/${id}/checklist`);
   
         const data = response.data || {};
-        console.log("📦 Full Seeker Checklist:", response.data);
 
         // Convert 0/1 to true/false
         const normalized = Object.fromEntries(
@@ -52,11 +94,10 @@ export default function EditChecklistScreen() {
           ])
         );
                 
-  
         setChecklist(prev => ({ ...prev, ...normalized }));
   
       } catch (error) {
-        console.log(error.response?.data || error.message);
+        console.error(error.response?.data || error.message);
         Alert.alert("Error", "Failed to load checklist");
       } finally {
         setLoading(false);
@@ -66,205 +107,207 @@ export default function EditChecklistScreen() {
     fetchChecklist();
   }, [id]);
   
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
+    Keyboard.dismiss(); // Dismiss keyboard before navigation
     try {
       await api.put(`/seekers/${id}/checklist`, checklist);
       Alert.alert("Success", "Checklist updated successfully!");
-      const url = `/seeker/${id}`;
-      console.log('url path',url);
-      router.replace(url);
+      router.replace(`/seekers`);
     } catch (error) {
-      console.log(error.response?.data || error.message);
+      console.error(error.response?.data || error.message);
       Alert.alert("Error", "Failed to update checklist");
     }
-  };
+  }, [id, checklist, router]);
 
-  useEffect(() => {
-    console.log("Updated Checklist:", checklist);
-  }, [checklist]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: `Edit ${name}'s Checklist`,
+      headerRight: () => (
+        <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
+          <Text style={styles.headerButtonText}>Save</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleSave, name]);
 
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
   return (
-
-      <>
-       <Stack.Screen options={{ title: "Edit Seeker Checklist" }} />
-
-        <KeyboardAvoidingView
+      <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: "#F2F2F7" }} // Light grey background for the whole screen
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 25}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: 150 }} 
+          keyboardShouldPersistTaps="handled" 
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={{ flex: 1 }}>
-              <ScrollView
-                style={styles.container}
-                contentContainerStyle={{ paddingBottom: 200 }}
-                keyboardShouldPersistTaps="handled"
-              >
-                {/* Pratishthan Sessions */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionTitle}>PRATISHTHAN SESSIONS</Text>
+          {/* Pratishthan Sessions */}
+          <View style={styles.cardPratishthan}>
+            <Text style={styles.sectionTitle}>
+                <FontAwesome5 name="seedling" size={18} color="#007AFF" /> PRATISHTHAN SESSIONS
+            </Text>
 
-                  <View>
-                    <View>
-                      <ChecklistSwitch
-                        label="Attended 1st Session"
-                        value={checklist.attended_session_1}
-                        onChange={(val) => handleChange("attended_session_1", val)}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="1st Session Comments"
-                        value={checklist.session_1_comments || ""}
-                        onChangeText={(text) => handleChange("session_1_comments", text)}
-                      />
-                    </View>
+            {[1, 2, 3, 4].map((n) => (
+                <SwitchAndComment
+                    key={`session-${n}`}
+                    label={`Attended ${getOrdinal(n)} Session`}
+                    ordinal={getOrdinal(n)}
+                    switchValue={checklist[`attended_session_${n}`]}
+                    onSwitchChange={(val) => handleChange(`attended_session_${n}`, val)}
+                    commentValue={checklist[`session_${n}_comments`]}
+                    onCommentChange={(text) => handleChange(`session_${n}_comments`, text)}
+                />
+            ))}
+          </View>
 
-                    <View>
-                      <ChecklistSwitch
-                        label="Attended 2nd Session"
-                        value={checklist.attended_session_2}
-                        onChange={(val) => handleChange("attended_session_2", val)}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="2nd Session Comments"
-                        value={checklist.session_2_comments || ""}
-                        onChangeText={(text) => handleChange("session_2_comments", text)}
-                      />
-                    </View>
+          {/* General Checklist & Monthly Follow-up */}
+          <View style={styles.cardFollowUp}>
+            <Text style={styles.sectionTitle}>
+                <FontAwesome5 name="list-ul" size={18} color="#2ECC71" /> GENERAL CHECKLIST
+            </Text>
 
-                    <View>
-                      <ChecklistSwitch
-                        label="Attended 3rd Session"
-                        value={checklist.attended_session_3}
-                        onChange={(val) => handleChange("attended_session_3", val)}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="3rd Session Comments"
-                        value={checklist.session_3_comments || ""}
-                        onChangeText={(text) => handleChange("session_3_comments", text)}
-                      />
-                    </View>
+            <ChecklistSwitch
+              label="Feeling Vibrations"
+              value={checklist.feeling_vibrations}
+              onChange={(val) => handleChange("feeling_vibrations", val)}
+            />
 
-                    <View>
-                      <ChecklistSwitch
-                        label="Attended 4th Session"
-                        value={checklist.attended_session_4}
-                        onChange={(val) => handleChange("attended_session_4", val)}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="4th Session Comments"
-                        value={checklist.session_4_comments || ""}
-                        onChangeText={(text) => handleChange("session_4_comments", text)}
-                      />
-                    </View>
-                  </View>
+            <ChecklistSwitch
+              label="Attended Centre"
+              value={checklist.attended_centres}
+              onChange={(val) => handleChange("attended_centres", val)}
+            />
 
-                </View>
+            <ChecklistSwitch
+              label="Attended Seminar"
+              value={checklist.attended_seminar}
+              onChange={(val) => handleChange("attended_seminar", val)}
+            />
 
-                {/* General Checklist */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionTitle}>FOLLOW-UP CHECKLIST</Text>
+            <ChecklistSwitch
+              label="Attended Puja"
+              value={checklist.attended_puja}
+              onChange={(val) => handleChange("attended_puja", val)}
+              isLast={true}
+            />
+          </View>
 
-                  <ChecklistSwitch
-                    label="Feeling Vibrations"
-                    value={checklist.feeling_vibrations}
-                    onChange={(val) => handleChange("feeling_vibrations", val)}
-                  />
+          <View style={styles.cardFollowUp}>
+            <Text style={styles.sectionTitle}>
+                <FontAwesome5 name="calendar-alt" size={18} color="#E67E22" /> MONTHLY FOLLOW-UP
+            </Text>
 
-                  <ChecklistSwitch
-                    label="Attended Centre"
-                    value={checklist.attended_centres}
-                    onChange={(val) => handleChange("attended_centres", val)}
-                  />
+            {[1, 2, 3, 4].map((n, index) => (
+              <SwitchAndComment
+                key={`month-${n}`}
+                label={`Attended ${getOrdinal(n)} Month`}
+                ordinal={getOrdinal(n)}
+                switchValue={checklist[`month_${n}`]}
+                onSwitchChange={(val) => handleChange(`month_${n}`, val)}
+                commentValue={checklist[`month_${n}_comments`]}
+                onCommentChange={(text) => handleChange(`month_${n}_comments`, text)}
+                isLast={index === 3}
+              />
+            ))}
+          </View>
 
-                  <ChecklistSwitch
-                    label="Attended Seminar"
-                    value={checklist.attended_seminar}
-                    onChange={(val) => handleChange("attended_seminar", val)}
-                  />
-
-                  <ChecklistSwitch
-                    label="Attended Puja"
-                    value={checklist.attended_puja}
-                    onChange={(val) => handleChange("attended_puja", val)}
-                  />
-
-                  {[1, 2, 3, 4].map((n) => (
-                    <View key={n}>
-                      <ChecklistSwitch
-                        label={`Attended ${n}ᵗʰ Month`}
-                        value={checklist[`month_${n}`]}
-                        onChange={(val) => handleChange(`month_${n}`, val)}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder={`${n}ᵗʰ Month Comments`}
-                        value={checklist[`month_${n}_comments`] || ""}
-                        onChangeText={(text) => handleChange(`month_${n}_comments`, text)}
-                      />
-                    </View>
-                  ))}
-                </View>
-
-                <Button title="Save Checklist" onPress={handleSave} />
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </>
+          </ScrollView>
+      </KeyboardAvoidingView>
   );
 }
 
-const ChecklistSwitch = ({ label, value, onChange }) => (
-  <View style={styles.section}>
-    <Text style={styles.label}>{label}</Text>
-    <Switch
-      value={value}
-      onValueChange={onChange}
-      thumbColor={value ? "#2196F3" : "#f4f3f4"}
-      trackColor={{ false: "#ccc", true: "#81b0ff" }}
-    />
-  </View>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  scrollView: { flex: 1, padding: 10 },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10, color: "#007AFF" },
-  section: {
+  
+  // --- Card Styles (Optimized) ---
+  cardPratishthan: {
+    backgroundColor: "#EBF5FF", // Light Blue/Sky color
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#D0E6FF',
+  },
+  cardFollowUp: {
+    backgroundColor: "#FFFFFF", // Clean White
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  sectionTitle: { 
+    fontSize: 17, 
+    fontWeight: "700", 
+    marginBottom: 15, 
+    color: "#333",
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EDEDED',
+  },
+
+  // --- Switch Row Styles ---
+  switchRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#D1D1D6",
   },
-  label: { fontSize: 16, flex: 1, marginRight: 10 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 8,
+  noBorder: {
+    borderBottomWidth: 0,
+  },
+  switchLabel: { 
+    fontSize: 16, 
+    color: "#2C2C2E", 
+    fontWeight: '400',
+    flex: 1, 
+    marginRight: 10 
+  },
+  
+  // --- Grouped Switch & Comment Styles ---
+  groupContainer: {
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
-  card: {
-    backgroundColor: "#f9f9f9",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
-    elevation: 2,
+  commentInput: {
+    backgroundColor: "#F9F9F9",
+    padding: 10,
+    paddingTop: 10, // Ensure text starts at the top for multiline
+    fontSize: 15,
+    color: "#4A4A4A",
+    borderTopWidth: 1,
+    borderTopColor: '#D1D1D6',
+    minHeight: 70, // Increased height for better comment visibility
+    textAlignVertical: 'top', // Align text to the top for Android multiline
   },
+
+  // --- Header Button Styles ---
+  headerButton: {
+    marginRight: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  headerButtonText: {
+    color: "#007AFF", 
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Existing loader style
+  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

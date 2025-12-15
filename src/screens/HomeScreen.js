@@ -1,141 +1,305 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, Text, Alert, TouchableOpacity, StyleSheet, FlatList } from "react-native";
+import { 
+    View, 
+    Text, 
+    Alert, 
+    TouchableOpacity, 
+    StyleSheet, 
+    FlatList, 
+    ActivityIndicator, 
+    Platform
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { AuthContext } from "../../src/context/AuthContext";
 import api from "../api/apiClient";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+// --- Constants ---
+const PRIMARY_COLOR = "#007AFF"; 
+const SECONDARY_COLOR = "#2196F3"; 
+const BACKGROUND_COLOR = "#FFFFFF"; 
+const BORDER_COLOR = "#E0E0E0"; 
+const TEXT_COLOR = "#212121";
+const SUBTLE_TEXT_COLOR = "#757575";
+const NUM_COLUMNS = 3; 
+
+const PERMISSIONS = {
+  ADD_SEEKER: 2,
+  USERS: 3,
+  ROLES: 5,
+  REPORTS: 7,
+};
 
 export default function HomeScreen() {
-    const [totalSeekers, setTotalSeekers] = useState(0);
     const [stats, setStats] = useState(null);
+    const [isLoadingStats, setIsLoadingStats] = useState(true); 
+    const [error, setError] = useState(null); 
     const router = useRouter();
     const { user, logout } = useContext(AuthContext);
-
-
-    useEffect(() => {
-      console.log("👤 Logged-in user from context:", user);
-      console.log("Permissions:", user?.permissions);
-
-    }, [user]);
+    const APP_NAME = "SahajaYoga Seeker Followup"; // 👈 Define your app name
 
     useEffect(() => {
       const fetchSeekers = async () => {
+        setIsLoadingStats(true);
+        setError(null);
         try {
+            console.log(user);
           const response = await api.get("/dashboard/stats");
-          setStats(response.data);  
-          console.log('stats',response.data.unallocated_seekers)
+          setStats(response.data);
         } catch (error) {
-          console.log("Error fetching stat:", error.message);
+          console.log("Error fetching stats:", error.message);
+          setError("Failed to load dashboard statistics.");
+        } finally {
+          setIsLoadingStats(false);
         }
       };
       fetchSeekers();
     }, []);
- 
+
     const menuItems = [
-      { id: "1", title: "Seekers", icon: "people", color: "#4CAF50", route: "/seekers" },
-      { id: "2", title: "Add Seeker", icon: "person-add", color: "#2196F3", route: "/addSeeker" , permissionId: 1 },
-      { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports" , permissionId: 7 },
-      { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles" , permissionId: 5 },
-      { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users" , permissionId: 3 },
-      { id: "6", title: "Logout", icon: "log-out", color: "#F44336"},
+      // ✅ FIX: Set the route directly to the intended destination /seekersList
+      { id: "1", title: "Seekers List", icon: "people", color: PRIMARY_COLOR, route: "/seekers" }, 
+      { id: "2", title: "Add Seeker", icon: "person-add", color: SECONDARY_COLOR, route: "/addSeeker", permissionId: PERMISSIONS.ADD_SEEKER },
+      { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports", permissionId: PERMISSIONS.REPORTS },
+      { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles", permissionId: PERMISSIONS.ROLES },
+      { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users", permissionId: PERMISSIONS.USERS },
+      { id: "6", title: "CCT Users", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.USERS },
+      { id: "7", title: "Zonal Statistics", icon: "man-outline", color: "#c27f5d", route: "/users/zonal", permissionId: PERMISSIONS.USERS },
+      { id: "8", title: "Moderators", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.USERS },
     ];
 
-    const handlePress = async (item) => {
-      if (item.title === "Logout") {
+    const handleLogout = () => {
         Alert.alert("Logout", "Are you sure you want to log out?", [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Logout",
-            onPress: async () => {
-              await logout();
-              router.replace("/login"); // 👈 Redirect to login screen
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Logout",
+                onPress: async () => {
+                    await logout();
+                    router.replace("/login");
+                },
             },
-          },
         ]);
-      } else {
+    };
+
+    const handlePress = async (item) => {
+        // ✅ FIX: Navigate directly using the route defined in the menu item
         router.push(item.route);
-      }
     };
 
     const accessibleMenuItems = menuItems.filter(
       (item) =>
-        !item.permissionId || // show if no restriction
-        user?.permissions?.includes(item.permissionId) // show if user has access
+        !item.permissionId ||
+        user?.permissions?.includes(item.permissionId)
     );
 
-    const renderItem = ({ item }) => (
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: item.color }]}
-        onPress={() => handlePress(item)} // 👈 Updated line
-    >
-        <Ionicons name={item.icon} size={28} color="#fff" />
-        <Text style={styles.cardText}>{item.title}</Text>
-      </TouchableOpacity>
-    );
+    const renderGridItem = ({ item }) => {
+        return (
+            <TouchableOpacity
+                style={styles.gridCard}
+                onPress={() => handlePress(item)}
+            >
+                <View style={[styles.iconContainer, { backgroundColor: item.color + '1A' }]}>
+                    <Ionicons 
+                        name={item.icon} 
+                        size={20} 
+                        color={item.color} 
+                    />
+                </View>
+                
+                <Text style={styles.gridCardText}>
+                    {item.title}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+    
+    // --- Condensed Stats Card ---
+    const renderStatsCard = () => {
+        if (isLoadingStats) {
+            return (
+                <View style={[styles.statsContainer, {paddingVertical: 10}]}>
+                    <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+                    <Text style={styles.statsLoadingText}>Loading statistics...</Text>
+                </View>
+            );
+        }
+
+        if (error) {
+            return (
+                <View style={[styles.statsContainer, styles.statsError]}>
+                    <Text style={styles.statsErrorText}>❌ {error}</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Unassigned</Text>
+                    <Text style={styles.statCount}>{stats?.unallocated_seekers ?? 0}</Text>
+                </View>
+
+                <View style={styles.statDivider} />
+                
+                <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Total Seekers</Text>
+                    <Text style={styles.statCount}>{stats?.total_seekers ?? 0}</Text>
+                </View>
+            </View>
+        );
+    };
 
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Welcome, {user?.name || "Guest"}! 🙏</Text>
-        <Text style={styles.sub_title}>{user?.role_name || "No Role"}</Text>
-
-        <FlatList
-          data={accessibleMenuItems}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-
-        <View style={styles.statsRow}>
-          <View style={styles.statsCard}>
-            <Text style={styles.statsCount}>  {stats?.unallocated_seekers ?? 0}
-</Text>
-            <Text style={styles.statsLabel}>Unassigned Seekers</Text>
+      <SafeAreaView style={styles.container}>
+          
+          {/* OPTIMIZED HEADER */}
+          <View style={styles.header}>
+            <View style={styles.userInfo}>
+                <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
+                <Text style={styles.roleText}>{user?.role_name || "No Role"}</Text>
+            </View>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={24} color="#F44336" />
+            </TouchableOpacity>
           </View>
+          
+          {/* STATISTICS CARD (Condensed) */}
+          {renderStatsCard()}
 
-          <View style={styles.statsCard}>
-            <Text style={styles.statsCount}>  {stats?.total_seekers ?? 0}
-</Text>
-            <Text style={styles.statsLabel}>Total Seekers</Text>
-          </View>
-        </View>
+          {/* NAVIGATION GRID TITLE */}
+          <Text style={styles.menuTitle}>Modules</Text>
 
-      </View>
+          {/* NAVIGATION GRID (3-Column Dense Grid) */}
+          <FlatList
+            data={accessibleMenuItems}
+            renderItem={renderGridItem}
+            keyExtractor={(item) => item.id}
+            key={NUM_COLUMNS} 
+            numColumns={NUM_COLUMNS} 
+            columnWrapperStyle={styles.row}
+            contentContainerStyle={styles.gridContainer}
+          />
+        </SafeAreaView>
     );
   }
 
   const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#fff", padding: 20, paddingTop: 20 },
-    title: { fontSize: 14, fontWeight: "bold", textAlign: "left", marginBottom: 8 },
-    sub_title: { fontSize: 12, textAlign: "left", marginBottom: 30 },
-    row: { justifyContent: "space-between", marginBottom: 20 },
-    card: {
-      flex: 1,
-      height: 120,
-      borderRadius: 16,
-      justifyContent: "center",
-      alignItems: "center",
-      marginHorizontal: 5,
-      elevation: 4,
-    },
-    cardText: { color: "#fff", marginTop: 10, fontSize: 16, fontWeight: "600" },
-    statsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 30,
-      gap: 10, // adds spacing between cards (works in RN 0.71+)
+    container: { 
+        flex: 1, 
+        backgroundColor: BACKGROUND_COLOR, 
+        paddingHorizontal: 15,
+        paddingTop: 5, 
     },
     
-    statsCard: {
-      flex: 1,
-      backgroundColor: "#E3F2FD",
-      borderRadius: 12,
-      padding: 20,
-      alignItems: "center",
-      justifyContent: "center",
+    // --- Optimized Header Styles ---
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    userInfo: {
+    },
+    welcomeText: { 
+        fontSize: 18, 
+        fontWeight: "700", 
+        color: TEXT_COLOR 
+    },
+    roleText: { 
+        fontSize: 14, 
+        color: SUBTLE_TEXT_COLOR, 
+        marginTop: 2 
+    },
+    logoutButton: {
+        padding: 5,
     },
     
-    statsCount: { fontSize: 36, fontWeight: "bold", color: "#1565C0" },
-    statsLabel: { fontSize: 16, color: "#555", marginTop: 4 },
-});
+    // --- Stats Card (Minimalist) ---
+    statsContainer: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        backgroundColor: '#F8F8F8', 
+        borderRadius: 12,
+        paddingVertical: 15,
+        marginBottom: 25,
+        borderWidth: 1,
+        borderColor: BORDER_COLOR,
+    },
+    statsLoadingText: {
+        marginLeft: 8,
+        color: SUBTLE_TEXT_COLOR
+    },
+    statsError: {
+        paddingVertical: 15,
+        backgroundColor: '#FFEEEE',
+        borderColor: '#F4433650',
+    },
+    statsErrorText: {
+        color: '#F44336',
+        textAlign: 'center',
+        flex: 1,
+        fontWeight: '500'
+    },
+    statItem: {
+        alignItems: "center",
+        flex: 1,
+        paddingHorizontal: 5,
+    },
+    statCount: { 
+        fontSize: 20, 
+        fontWeight: "900", 
+        color: PRIMARY_COLOR, 
+        marginTop: 4,
+    },
+    statLabel: { 
+        fontSize: 12, 
+        color: SUBTLE_TEXT_COLOR, 
+        textAlign: 'center',
+        fontWeight: '500'
+    },
+    statDivider: {
+        width: 1,
+        backgroundColor: BORDER_COLOR,
+        marginHorizontal: 10,
+    },
+    
+    // --- Navigation Grid ---
+    menuTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: TEXT_COLOR,
+        marginBottom: 10,
+        paddingLeft: 5,
+    },
+    gridContainer: {
+        paddingBottom: 20,
+    },
+    row: { 
+        justifyContent: "space-between", 
+        marginBottom: 10 
+    },
+    gridCard: {
+        flex: 1,
+        height: 90, 
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center",
+        marginHorizontal: 5,
+        backgroundColor: '#F8F8F8', 
+        borderWidth: 1,
+        borderColor: BORDER_COLOR,
+    },
+    iconContainer: {
+        padding: 10,
+        borderRadius: 8,
+    },
+    gridCardText: { 
+        color: TEXT_COLOR, 
+        marginTop: 8, 
+        fontSize: 12, 
+        fontWeight: "600",
+        textAlign: 'center',
+        paddingHorizontal: 2,
+    },
+  });

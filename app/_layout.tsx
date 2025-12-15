@@ -1,17 +1,17 @@
+// _layout.tsx
+
 import { Stack } from "expo-router";
 import { AuthProvider } from '../src/context/AuthContext';
-
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-
-      <Stack initialRouteName="login">
-        <Stack.Screen
-          name="login"
-          options={{ headerShown: false }}
-        />
-      </Stack>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Stack initialRouteName="login">
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+        </Stack>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

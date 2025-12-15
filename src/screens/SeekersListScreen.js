@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,107 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Switch,
   Alert,
   Button,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/apiClient";
 import { AuthContext } from "../../src/context/AuthContext";
 import { useRouter, Stack } from "expo-router";
-import { Picker } from "@react-native-picker/picker"; // 👈 install with: npm install @react-native-picker/picker
+import { Picker } from "@react-native-picker/picker";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from '@react-navigation/native';
+
+// --- Constants for Consistent Styling ---
+const PRIMARY_COLOR = "#007AFF"; 
+const SUCCESS_COLOR = "#4CAF50"; 
+const DANGER_COLOR = "#F44336"; 
+const BACKGROUND_COLOR = "#F9F9F9";
+const CARD_BACKGROUND = "#FFFFFF";
+const DEBOUNCE_DELAY = 500; // 500ms delay for search
+
+// Utility for Debouncing
+function useDebounce(value, delay) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+}
+
+// Optimized Filter Option Component (No change)
+const FilterOption = ({ label, isSelected, onPress }) => (
+  <TouchableOpacity
+    style={[
+      styles.filterOption,
+      isSelected ? styles.selectedOption : styles.unselectedOption,
+    ]}
+    onPress={onPress}
+  >
+    <Text style={[styles.filterOptionText, isSelected && styles.selectedOptionText]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+// Optimized Seeker Card Component (No change)
+const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDetails }) => {
+    const moderatorIconColor = item.moderator ? SUCCESS_COLOR : DANGER_COLOR;
+    const moderatorIconName = item.moderator ? "person" : "person-remove"; 
+
+    return (
+        <TouchableOpacity
+            style={[styles.card, isSelected && styles.selectedCard]}
+            activeOpacity={0.8}
+            onPress={onViewDetails}
+        >
+            <View style={styles.cardContent}>
+                <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={onToggleSelection}
+                >
+                    <Ionicons
+                        name={isSelected ? "checkbox-outline" : "square-outline"}
+                        size={22} 
+                        color={isSelected ? PRIMARY_COLOR : "#A0A0A0"}
+                    />
+                </TouchableOpacity>
+        
+                <View style={styles.infoContainer}>
+                    <View style={styles.nameRow}>
+                        <Text style={styles.name} numberOfLines={1}>
+                            {item.first_name} {item.last_name}
+                        </Text>
+                        <Ionicons name={moderatorIconName} size={18} color={moderatorIconColor} style={{marginLeft: 8}} />
+                    </View>
+                    
+                    <View style={styles.detailsRow}>
+                        <Ionicons name="location-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
+                        <Text style={styles.locationText} numberOfLines={1}>{item.zone?.name}, {item.city || "N/A"}</Text>
+                        
+                        <Ionicons name="call-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
+                        <Text style={styles.mobileText}>{item.mobile}</Text>
+                    </View>
+                    
+                    <View style={styles.typeBadgeContainer}>
+                        <Text style={styles.typeBadgeText}>
+                            {item.type === 1 ? 'Pratishthan Seeker' : 'Public Seeker'}
+                        </Text>
+                    </View>
+
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+});
+
 
 export default function SeekersListScreen() {
   const [seekers, setSeekers] = useState([]);
@@ -26,42 +118,30 @@ export default function SeekersListScreen() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
   const router = useRouter();
   const [filterVisible, setFilterVisible] = useState(false);
   const [selectedSeekers, setSelectedSeekers] = useState([]);
   const [moderatorModalVisible, setModeratorModalVisible] = useState(false);
   const [moderators, setModerators] = useState([]);
   const [selectedModerator, setSelectedModerator] = useState(null);
-  const [initialLoading, setInitialLoading] = useState(true); // first screen load
+  const [initialLoading, setInitialLoading] = useState(true);
   const [currentFilters, setCurrentFilters] = useState({});
-  const [activeTypeTab, setActiveTypeTab] = useState("all"); // "all" | "1" | "2"
+  const [activeTypeTab, setActiveTypeTab] = useState("all");
   const [zones, setZones] = useState([]);
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  
   const { user } = useContext(AuthContext);
   const role = Number(user.role_id);
   const isDisabled = !(role === 2 || role === 3);
 
-
-  const modalTitle = role === 2 
-                    ? "Caller"
-                    : role === 3 
-                      ? "Moderator"
-                      : "Not Allowed";
+  const modalTitle = role === 2 ? "Caller" : role === 3 ? "Moderator" : "Not Allowed";
                       
   const getButtonLabel = () => {
     if (role === 2) return `Assign Caller (${selectedSeekers.length})`;
     if (role === 3) return `Assign Moderator (${selectedSeekers.length})`;
     return "Not Allowed";
   };
-
-  useEffect(() => {
-    console.log("👤 Logged-in user from context:", user);
-    console.log("Permissions:", user?.permissions);
-    console.log("Zone:", user?.zone_id);
-    console.log("Role:", user?.role_id);
-
-  }, [user]);
-
+  
   const [filters, setFilters] = useState({
     name: "",
     mobile: "",
@@ -75,41 +155,45 @@ export default function SeekersListScreen() {
     attended_session_2: null,
     attended_session_3: null,
     attended_session_4: null,
-    month_1: "",
-    month_2: "",
   });
 
+  // 🛠️ NEW: Debounce the 'name' filter input
+  const debouncedSearchTerm = useDebounce(filters.name, DEBOUNCE_DELAY);
+
   const fetchSeekers = async (filters = {}, pageNumber = 1, refreshing = false) => {
-    // Prevent duplicate calls
     if (loading && !refreshing && pageNumber !== 1) return;
   
     try {
+      // Show loading indicator only when refreshing or initially loading page 1
       if (pageNumber === 1 && !refreshing) setInitialLoading(true);
       setLoading(true);
   
-      const queryParams = Object.entries(filters)
+      const defaultContextParams = {
+        zone_id: user.zone_id,
+        role_id: role,
+        id: user.id,
+      };
+
+      const finalFilters = { ...filters, ...defaultContextParams };
+  
+      const queryParams = Object.entries(finalFilters)
         .filter(([_, value]) => value !== "" && value !== null)
         .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
         .join("&");
   
-      const url = queryParams
-        ? `/seekers?${queryParams}&zone_id=${user.zone_id}&role_id=${role}&id=${user.id}&page=${pageNumber}`
-        : `/seekers?zone_id=${user.zone_id}&role_id=${role}&id=${user.id}&page=${pageNumber}`;
-  
-      console.log("Fetching:", url); // 👈 check request actually fires
+      const url = `/seekers?${queryParams}&page=${pageNumber}`;
   
       const response = await api.get(url);
       const data = response.data.data || [];
       const isLastPage = response.data.current_page >= response.data.last_page;
   
-      if (refreshing || pageNumber === 1) {
-        setSeekers(data);
-      } else {
-        setSeekers((prev) => [...prev, ...data]);
-      }
+      setSeekers((prev) => 
+        refreshing || pageNumber === 1 ? data : [...prev, ...data]
+      );
   
       setHasMore(!isLastPage);
       setPage(pageNumber);
+      setCurrentFilters(filters); 
     } catch (error) {
       console.error("Error fetching seekers:", error.message);
     } finally {
@@ -119,6 +203,52 @@ export default function SeekersListScreen() {
     }
   };
   
+  // 🚀 FIX: Trigger search only when the debounced term changes
+  useEffect(() => {
+    // Only search if the component is not in its initial loading phase
+    if (!initialLoading) {
+      // Ensure we merge the debounced name with the other active filters
+      const newFilters = { 
+        ...currentFilters, 
+        name: debouncedSearchTerm, 
+        type: activeTypeTab === 'all' ? '' : activeTypeTab // Ensure the current tab is respected
+      };
+      
+      // Update current filters to include the latest search term
+      setCurrentFilters(newFilters);
+      
+      // Fetch seekers with the new filters starting from page 1
+      fetchSeekers(newFilters, 1, true); 
+    }
+  }, [debouncedSearchTerm]); // Dependency on the debounced value
+
+  
+  useFocusEffect(
+    useCallback(() => {
+        // Only run if we are not currently loading for the first time
+        if (!initialLoading) {
+            // Re-fetch using the current active filters
+            fetchSeekers(currentFilters, 1, true);
+        } else {
+            // Initial load sequence
+            fetchSeekers(currentFilters, 1, true);
+        }
+    }, [user.id, user.zone_id, role, currentFilters])
+  );
+  
+  // Initial zones fetch
+  useEffect(() => {
+    const fetchZones = async () => {
+        try {
+            const response = await api.get("/zones");
+            setZones(response.data);
+        } catch (error) {
+            console.error("Error loading zones:", error);
+        }
+    };
+    fetchZones();
+  }, []);
+
   const handleLoadMore = () => {
     if (!loading && hasMore) {
       fetchSeekers(currentFilters, page + 1);
@@ -130,57 +260,35 @@ export default function SeekersListScreen() {
     fetchSeekers(currentFilters, 1, true);
   };
   
- // Call initially
-  useEffect(() => {
-    fetchSeekers({}, 1, true);
-  }, []);
-
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const response = await api.get("/zones");
-        setZones(response.data);
-      } catch (error) {
-        console.log("Error loading zones:", error);
-      }
-    };
-    fetchZones();
-  }, []);
-
-  const filteredSeekers = seekers.filter(
-    (s) =>
-      s.first_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.last_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.mobile?.includes(search)
-  );
-
-  // if (loading) {
-  //   return (
-  //     <View style={styles.loader}>
-  //       <ActivityIndicator size="large" color="#2196F3" />
-  //     </View>
-  //   );
-  // }
-
-  if (initialLoading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2196F3" />
-      </View>
-    );
-  }
-  
+  // 🛠️ Updated: Now only updates the local state 'filters.name'. The debounced effect handles the API call.
+  const handleSearchChange = (text) => {
+    setFilters(prev => ({ ...prev, name: text }));
+  };
 
   const handleApplyFilters = () => {
     const params = Object.fromEntries(
       Object.entries(filters).filter(([_, v]) => v !== "" && v !== null)
     );
     setFilterVisible(false);
-    fetchSeekers(params);
+    
+    // Set active tab based on filter result
+    if (params.type) {
+        setActiveTypeTab(params.type);
+    } else {
+        setActiveTypeTab("all");
+    }
+    
+    // Apply filters and search term together
+    const combinedFilters = {
+        ...params,
+        name: filters.name, // Use the current filter's name (which might not be debounced yet)
+    };
+
+    fetchSeekers(combinedFilters, 1, true);
   };
 
   const handleReset = () => {
-    setFilters({
+    const resetFilters = {
       name: "",
       mobile: "",
       zone_id: "",
@@ -189,23 +297,15 @@ export default function SeekersListScreen() {
       moderator_id: null,
       attended_puja: null,
       attended_centres: null,
-      entry_date: "",
       attended_session_1: null,
       attended_session_2: null,
       attended_session_3: null,
       attended_session_4: null,
-    });
-  };
-
-  const applyFilters = async (filters) => {
-    setFilterVisible(false);
-  
-    try {
-      const response = await api.get("/seekers", { params: filters });
-      setSeekers(response.data);
-    } catch (error) {
-      console.error("Error applying filters:", error.message);
-    }
+    };
+    setFilters(resetFilters);
+    setActiveTypeTab("all");
+    setIsSearchVisible(false); 
+    fetchSeekers(resetFilters, 1, true); 
   };
 
   const toggleSelection = (id) => {
@@ -214,67 +314,18 @@ export default function SeekersListScreen() {
     );
   };
   
-  const renderItem = ({ item }) => {
-    const isSelected = selectedSeekers.includes(item.id);
-  
-    return (
-      <TouchableOpacity
-        style={[styles.card, isSelected && styles.selectedCard]}
-        activeOpacity={0.9}
-        onPress={() => router.push(`/seeker/${item.id}`)} // 👈 View details
-      >
-        <View style={styles.cardHeader}>
-          {/* ✅ Checkbox */}
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => toggleSelection(item.id)} // 👈 toggle select
-          >
-            <Ionicons
-              name={isSelected ? "checkbox-outline" : "square-outline"}
-              size={24}
-              color={isSelected ? "#2196F3" : "#aaa"}
-            />
-          </TouchableOpacity>
-  
-          {/* Avatar and info */}
-          <Ionicons name="person-circle-outline" size={36} color="#2196F3" />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={styles.name}>
-              {item.first_name} {item.last_name}
-            </Text>
-
-            {/* 👇 Moderator status icon */}
-            {item.moderator ? (
-              <Ionicons name="person-outline" size={20} color="#4CAF50" />
-            ) : (
-              <Ionicons name="person-remove-outline" size={20} color="#F44336" />
-            )}
-          </View>
-            <Text style={styles.city}>{item.zone?.name}, {item.city || "City N/A"}</Text>           
-          </View>
-        </View>
-  
-        {/* <View style={styles.cardFooter}>
-          <Ionicons name="call-outline" size={16} color="#555" />
-          <Text style={styles.mobile}>{item.mobile}</Text>
-        </View> */}
-      </TouchableOpacity>
-    );
-  };
-  
-
-  const toggleSelect = (id) => {
-    setSelectedSeekers((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
+  const renderItem = ({ item }) => (
+    <SeekerCard 
+        item={item}
+        isSelected={selectedSeekers.includes(item.id)}
+        onToggleSelection={() => toggleSelection(item.id)}
+        onViewDetails={() => router.push(`/seeker/${item.id}`)}
+    />
+  );
   
   const fetchModerators = async () => {
     try {
-
       const url = `/users?user_type=seeker&role_id=${role}`;
-      console.log("Fetching Moderators:", url); 
       const response = await api.get(url);
       setModerators(response.data);
     } catch (error) {
@@ -283,7 +334,7 @@ export default function SeekersListScreen() {
   };
   
   const assignModerator = async () => {
-    if (!selectedModerator) return Alert.alert("Please select a moderator");
+    if (!selectedModerator) return Alert.alert("Please select a caller/moderator");
   
     try {
       await api.post("/seekers/assign-moderator", {
@@ -294,48 +345,98 @@ export default function SeekersListScreen() {
       Alert.alert("Success", `${modalTitle} assigned successfully!`);
       setModeratorModalVisible(false);
       setSelectedSeekers([]);
-      fetchSeekers(); // refresh list
+      fetchSeekers(currentFilters, 1, true); // Refresh list
     } catch (error) {
       console.error("Error assigning moderator:", error);
-      Alert.alert("Error", "Could not assign moderator.");
+      Alert.alert("Error", "Could not assign caller/moderator.");
     }
   };
   
 
-  return (
+  if (initialLoading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+        <Text style={{ marginTop: 10, color: "#555", fontSize: 16 }}>Loading data...</Text>
+      </View>
+    );
+  }
+  
+  // Define the custom Home button component
+  const renderHomeButton = () => (
+      <TouchableOpacity
+          style={styles.homeButton}
+          // Use router.replace to go to the Home screen and clear the stack history
+          onPress={() => router.replace('/')} // Change '/' to your actual home path (e.g., '/home')
+      >
+          <Ionicons name="home-outline" size={24} color="#1F2937" />
+      </TouchableOpacity>
+  );
 
+  const renderHeaderRight = () => (
+    <View style={styles.headerRightContainer}>
+        <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => {
+                setIsSearchVisible(prev => !prev);
+                // Clear search input if hiding
+                if (isSearchVisible) {
+                    handleSearchChange(''); 
+                }
+            }} 
+        >
+            <Ionicons name={isSearchVisible ? "close" : "search"} size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setFilterVisible(true)}
+        >
+            <Ionicons name="filter" size={18} color="#fff" />
+            <Text style={styles.filterText}>Filter</Text>
+        </TouchableOpacity>
+    </View>
+  );
+
+  return (
     <>
-      {/* Custom header instead of "users/index" */}
       <Stack.Screen
         options={{
           title: "Seekers List",
-          headerRight: () => (
-            <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setFilterVisible(true)}
-          >
-            <Ionicons name="filter" size={18} color="#fff" />
-            <Text style={styles.filterText}>Filter</Text>
-          </TouchableOpacity>
-          ),
+          headerRight: renderHeaderRight,
+          headerLeft: renderHomeButton,
+          headerStyle: { backgroundColor: CARD_BACKGROUND }, 
+          headerTitleStyle: { color: "#1F2937" },
         }}
       />
 
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
      
-      {/* <View style={styles.headerRow}>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setFilterVisible(true)}
-        >
-          <Ionicons name="filter" size={18} color="#fff" />
-          <Text style={styles.filterText}>Filter</Text>
-        </TouchableOpacity>
+      {isSearchVisible && (
+          <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+              <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search Name or Mobile..."
+                  placeholderTextColor="#A0A0A0"
+                  value={filters.name} 
+                  onChangeText={handleSearchChange}
+                  // Removed onSubmitEditing as debounce handles search now
+              />
+              {filters.name.length > 0 && (
+                <TouchableOpacity 
+                  onPress={() => {
+                      handleSearchChange(''); // Clear search input
+                  }}
+                  style={{padding: 5}}
+                >
+                  <Ionicons name="close-circle" size={20} color="#A0A0A0" />
+                </TouchableOpacity>
+              )}
+          </View>
+      )}
 
 
-      </View> */}
-
+      {/* Tabs for Type Filtering (More compact design) */}
       <View style={styles.tabsContainer}>
         {[
           { label: "All", value: "all" },
@@ -348,8 +449,9 @@ export default function SeekersListScreen() {
             onPress={() => {
               setActiveTypeTab(tab.value);
               const newFilters = {
-                ...currentFilters,
+                ...currentFilters, 
                 type: tab.value === "all" ? "" : tab.value,
+                name: filters.name, // Preserve current search term
               };
               setCurrentFilters(newFilters);
               fetchSeekers(newFilters, 1, true);
@@ -374,683 +476,565 @@ export default function SeekersListScreen() {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={PRIMARY_COLOR} />
         }
         ListFooterComponent={
-          loading && <Text style={{ textAlign: "center", padding: 10 }}>Loading more...</Text>
+          loading && !refreshing && page > 1 ? (
+            <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{ padding: 10 }} />
+          ) : null
         }
-        contentContainerStyle={{ paddingBottom: 20 }}
+        // 🚀 FIX: Increased bottom padding significantly to clear the bottom navigation area and floating button
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: selectedSeekers.length > 0 ? 150 : 50 }}
+        ListEmptyComponent={
+          !loading && <Text style={styles.emptyText}>No seekers found matching your criteria.</Text>
+        }
       />
 
       {selectedSeekers.length > 0 && (
         <TouchableOpacity
           style={[
             styles.assignButton,
-            isDisabled && { backgroundColor: "#ccc" } // disabled UI styling
+            isDisabled && styles.assignButtonDisabled
           ]}
           disabled={isDisabled}
           onPress={() => {
             if (!isDisabled) {
               fetchModerators();
+              setSelectedModerator(null); 
               setModeratorModalVisible(true);
             }
           }}
         >
           <Text
-            style={[
-              styles.assignButtonText,
-              isDisabled && { color: "#888" }
-            ]}
+            style={styles.assignButtonText}
           >
             {getButtonLabel()}
           </Text>
         </TouchableOpacity>
-
       )}
 
       {/* 🪟 Filter Modal */}
       <Modal visible={filterVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-
-            {/* ✖ Close Button */}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setFilterVisible(false)}
-            >
-              <Text style={styles.closeText}>✕</Text>
-            </TouchableOpacity>
             
-            {/* 👇 Scrollable Content */}
-            <ScrollView style={{ flexGrow: 1 }}>
-              <Text style={styles.modalTitle}>Filter Seekers</Text>
+            <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filter Seekers</Text>
+                <TouchableOpacity
+                    onPress={() => setFilterVisible(false)}
+                    style={styles.closeButton}
+                >
+                    <Ionicons name="close" size={24} color="#555" />
+                </TouchableOpacity>
+            </View>
 
-{/* 
-              <TextInput
-                style={styles.searchBox}
-                placeholder="Search by name or mobile..."
-                value={search}
-                onChangeText={setSearch}
-              /> */}
+            <ScrollView contentContainerStyle={{paddingBottom: 20}}>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Name"
-                value={filters.name}
-                onChangeText={(text) => setFilters({ ...filters, name: text })}
-              />
+              <Text style={styles.sectionTitle}>General Details</Text>
 
+              {/* Mobile Input */}
               <TextInput
                 style={styles.input}
-                placeholder="Mobile"
+                placeholder="Mobile Number"
+                placeholderTextColor="#A0A0A0"
+                keyboardType="phone-pad"
                 value={filters.mobile}
                 onChangeText={(text) => setFilters({ ...filters, mobile: text })}
               />
-
-              <View style={styles.inputContainer}>
-                <View style={styles.pickerWrapper}>
+              
+              {/* Zone Picker */}
+              <View style={styles.pickerWrapper}>
                   <Picker
                     selectedValue={filters.zone_id}
                     onValueChange={(value) => setFilters({ ...filters, zone_id: value })}
                     style={styles.picker}
+                    itemStyle={styles.pickerItem}
                   >
-                    <Picker.Item label="Select Zone" value="" />
+                    <Picker.Item label="Select Zone" value="" color="#A0A0A0" />
                     {zones.map((zone) => (
                       <Picker.Item key={zone.id} label={zone.name} value={zone.id} />
                     ))}
                   </Picker>
-                </View>
               </View>
 
-              <View style={styles.inputContainer}>
-                <View style={styles.pickerWrapper}>
+              {/* Type Picker */}
+              <View style={styles.pickerWrapper}>
                   <Picker
                     selectedValue={filters.type}
                     onValueChange={(value) => setFilters({ ...filters, type: value })}
                     style={styles.picker}
+                    itemStyle={styles.pickerItem}
                   >
-                    <Picker.Item label="Select Type" value="" />
+                    <Picker.Item label="Select Type" value="" color="#A0A0A0" />
                     <Picker.Item label="Pratishthan" value="1" />
                     <Picker.Item label="Public" value="2" />
                   </Picker>
-                </View>
               </View>
 
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Interested in Follow-up</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.interested_in_followup === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, interested_in_followup: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.interested_in_followup === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, interested_in_followup: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.interested_in_followup === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, interested_in_followup: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Follow-up Status</Text>
+              
+              {/* Interested in Follow-up */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>Interested in Follow-up</Text>
+                <View style={styles.optionRow}>
+                    <FilterOption label="Yes" isSelected={filters.interested_in_followup === true} onPress={() => setFilters({ ...filters, interested_in_followup: true })} />
+                    <FilterOption label="No" isSelected={filters.interested_in_followup === false} onPress={() => setFilters({ ...filters, interested_in_followup: false })} />
+                    <FilterOption label="All" isSelected={filters.interested_in_followup === null} onPress={() => setFilters({ ...filters, interested_in_followup: null })} />
                 </View>
               </View>
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Moderator Assigned</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.moderator_id === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, moderator_id: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
+              
+              {/* Moderator Assigned */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>Moderator Assigned</Text>
+                <View style={styles.optionRow}>
+                    <FilterOption label="Yes" isSelected={filters.moderator_id === true} onPress={() => setFilters({ ...filters, moderator_id: true })} />
+                    <FilterOption label="No" isSelected={filters.moderator_id === false} onPress={() => setFilters({ ...filters, moderator_id: false })} />
+                    <FilterOption label="All" isSelected={filters.moderator_id === null} onPress={() => setFilters({ ...filters, moderator_id: null })} />
                 </View>
               </View>
 
 
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended Puja</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_puja === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_puja: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Activity Checklist</Text>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_puja === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_puja: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_puja === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_puja: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
+              {/* Attended Puja */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>Attended Puja</Text>
+                <View style={styles.optionRow}>
+                    <FilterOption label="Yes" isSelected={filters.attended_puja === true} onPress={() => setFilters({ ...filters, attended_puja: true })} />
+                    <FilterOption label="No" isSelected={filters.attended_puja === false} onPress={() => setFilters({ ...filters, attended_puja: false })} />
+                    <FilterOption label="All" isSelected={filters.attended_puja === null} onPress={() => setFilters({ ...filters, attended_puja: null })} />
                 </View>
               </View>
 
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended Centre</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_centres === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_centres: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_centres === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_centres: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_centres === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_centres: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
+              {/* Attended Centre */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>Attended Centre</Text>
+                <View style={styles.optionRow}>
+                    <FilterOption label="Yes" isSelected={filters.attended_centres === true} onPress={() => setFilters({ ...filters, attended_centres: true })} />
+                    <FilterOption label="No" isSelected={filters.attended_centres === false} onPress={() => setFilters({ ...filters, attended_centres: false })} />
+                    <FilterOption label="All" isSelected={filters.attended_centres === null} onPress={() => setFilters({ ...filters, attended_centres: null })} />
                 </View>
               </View>
 
-              {/* 🔹 Section 2: Checklist Filters */}
-              <Text style={styles.sectionTitle}>Pratishthan Checklist Filters</Text>
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended 1st Session</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_1 === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_1: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_1 === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_1: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_1 === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_1: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
+              {/* Pratishthan Sessions (1st to 4th) */}
+              {[1, 2, 3, 4].map((n) => (
+                <View key={`session-${n}`} style={styles.optionGroup}>
+                    <Text style={styles.optionGroupLabel}>{`Attended ${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Session`}</Text>
+                    <View style={styles.optionRow}>
+                        <FilterOption label="Yes" isSelected={filters[`attended_session_${n}`] === true} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: true })} />
+                        <FilterOption label="No" isSelected={filters[`attended_session_${n}`] === false} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: false })} />
+                        <FilterOption label="All" isSelected={filters[`attended_session_${n}`] === null} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: null })} />
+                    </View>
                 </View>
-              </View>
+              ))}
 
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended 2nd Session</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_2 === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_2: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_2 === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_2: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_2 === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_2: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended 3rd Session</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_3 === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_3: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_3 === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_3: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_3 === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_3: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={{ marginVertical: 10 }}>
-                <Text style={{ fontWeight: "bold" }}>Attended 4th Session</Text>
-                <View style={{ flexDirection: "row", marginTop: 6 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_4 === true && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_4: true })}
-                  >
-                    <Text>Yes</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_4 === false && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_4: false })}
-                  >
-                    <Text>No</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      filters.attended_session_4 === null && styles.selectedOption,
-                    ]}
-                    onPress={() => setFilters({ ...filters, attended_session_4: null })}
-                  >
-                    <Text>Don't Consider</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* <TextInput
-                style={styles.input}
-                placeholder="Entry Date (YYYY-MM-DD)"
-                value={filters.entry_date}
-                onChangeText={(text) =>
-                  setFilters({ ...filters, entry_date: text })
-                }
-              /> */}
-
-              <View style={styles.modalButtons}>
-                <Button title="Reset" color="#888" onPress={handleReset} />
-                <Button title="Apply" onPress={handleApplyFilters} />
-              </View>
             </ScrollView>
+
+            <View style={styles.modalFooter}>
+                <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+                    <Text style={styles.resetButtonText}>Reset</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
+                    <Text style={styles.applyButtonText}>Apply Filters</Text>
+                </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
 
-      <Modal visible={moderatorModalVisible} animationType="slide">
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Select {modalTitle}</Text>
+      {/* 🪟 Moderator/Caller Assignment Modal */}
+      <Modal visible={moderatorModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+            <View style={styles.moderatorModalContent}>
+                <Text style={styles.modalTitle}>{`Select ${modalTitle}`}</Text>
 
-          <ScrollView>
-            {moderators.map((mod) => (
-              <TouchableOpacity
-                key={mod.id}
-                style={[
-                  styles.moderatorItem,
-                  mod.id === selectedModerator && styles.selectedModerator,
-                ]}
-                onPress={() => setSelectedModerator(mod.id)}
-              >
-                <Text>{mod.name}</Text>
-                <Text style={styles.subText}>{mod.zone?.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                <ScrollView style={{maxHeight: 300, marginVertical: 15}}>
+                    {moderators.map((mod) => (
+                    <TouchableOpacity
+                        key={mod.id}
+                        style={[
+                        styles.moderatorItem,
+                        mod.id === selectedModerator && styles.selectedModerator,
+                        ]}
+                        onPress={() => setSelectedModerator(mod.id)}
+                    >
+                        <Text style={styles.moderatorName}>{mod.name}</Text>
+                        <Text style={styles.moderatorZone}>{mod.zone?.name || 'Global'}</Text>
+                    </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
-          <View style={styles.modalButtons}>
-            <Button title="Save" onPress={assignModerator} />
-            <Button title="Cancel" color="gray" onPress={() => setModeratorModalVisible(false)} />
-          </View>
+                <View style={styles.modalButtons}>
+                    <Button title="Cancel" color="gray" onPress={() => setModeratorModalVisible(false)} />
+                    <Button title={`Assign ${selectedSeekers.length} Seeker(s)`} onPress={assignModerator} disabled={!selectedModerator} />
+                </View>
+            </View>
         </View>
       </Modal>
 
-    </View>
+    </SafeAreaView>
 
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20, paddingTop: 15 },
-  title: { fontSize: 18, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
-  searchBox: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
+  container: { flex: 1, backgroundColor: BACKGROUND_COLOR,  },
+  loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: BACKGROUND_COLOR },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+
+  // --- Header Right and Search Toggle ---
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: -10, 
+  },
+  headerIcon: {
     padding: 10,
-    marginBottom: 20,
+    marginRight: 10,
   },
-  card: {
-    backgroundColor: "#E3F2FD",
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 12,
-    elevation: 2,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center" },
-  name: { fontSize: 14, fontWeight: "bold" },
-  city: { fontSize: 12, color: "#666" },
-  cardFooter: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  mobile: { fontSize: 12, marginLeft: 6, color: "#333" },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
-  
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2196F3",
+    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
-  
   filterText: {
     color: "#fff",
     marginLeft: 5,
-    fontWeight: "500",
-    fontSize: 10,
+    fontWeight: "600",
+    fontSize: 14,
   },
   
+  // --- Search Bar (Conditional) ---
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BACKGROUND,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginHorizontal: 10,
+    marginTop: 0, 
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 8 : 8, 
+    paddingBottom: Platform.OS === 'ios' ? 8 : 8, 
+    fontSize: 15,
+    color: '#1F2937',
+  },
+
+  // --- Tabs ---
+  tabsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: "#E0F7FA", 
+    borderRadius: 8,
+    padding: 2, 
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 6, 
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: CARD_BACKGROUND,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 13, 
+    fontWeight: "500",
+    color: "#00BCD4", 
+  },
+  activeTabText: {
+    color: PRIMARY_COLOR, 
+    fontWeight: "700",
+  },
+
+  // --- List Item Card (Density Optimized) ---
+  card: {
+    backgroundColor: CARD_BACKGROUND,
+    borderRadius: 12,
+    marginHorizontal: 5,
+    marginVertical: 4, 
+    padding: 12, 
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  selectedCard: {
+    backgroundColor: "#EBF5FF", 
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR,
+    elevation: 4,
+  },
+  cardContent: { 
+    flexDirection: "row", 
+    alignItems: "flex-start", 
+  },
+  checkboxContainer: {
+    paddingRight: 10, 
+    paddingVertical: 2,
+  },
+  infoContainer: {
+    flex: 1, 
+    marginLeft: 5 
+  },
+  nameRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  name: { 
+    fontSize: 15, 
+    fontWeight: "700", 
+    color: "#1F2937" ,
+    flex: 1,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2, 
+  },
+  locationText: { 
+    fontSize: 13, 
+    color: "#4B5563", 
+  },
+  mobileText: {
+    fontSize: 13, 
+    color: "#4B5563",
+  },
+  typeBadgeContainer: {
+    marginTop: 4, 
+    alignSelf: 'flex-start',
+    backgroundColor: '#F0F9FF', 
+    paddingHorizontal: 6, 
+    paddingVertical: 2, 
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#C5E0FF',
+  },
+  typeBadgeText: {
+    fontSize: 11, 
+    fontWeight: '600',
+    color: '#1E40AF', 
+  },
+
+  // --- Assignment Button (Bottom Fix applied here too) ---
+  assignButton: {
+    position: "absolute",
+    bottom: Platform.OS === 'ios' ? 20 : 35, // Increased bottom margin for Android safe area/nav bar
+    left: 10,
+    right: 10,
+    backgroundColor: PRIMARY_COLOR,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  assignButtonDisabled: {
+    backgroundColor: "#A0A0A0",
+  },
+  assignButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  // --- Modal Styles (Maintained Structure) ---
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end", 
   },
   modalContent: {
-    width: "90%",
-    height: "80%", // give enough height for scrolling
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
+    width: "100%",
+    maxHeight: "90%",
+    backgroundColor: CARD_BACKGROUND,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 15,
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: { 
+    fontSize: 18, 
+    fontWeight: "700", 
+    color: "#1F2937" 
+  },
+  closeButton: {
+    padding: 5,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 20,
     marginBottom: 10,
-  },
-  modalTitle: { fontSize: 12, fontWeight: "bold" },
-  closeButton: { fontSize: 18, color: "#999" },
-  section: { marginVertical: 10 },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 8,
-  },
-  footer: {
-    marginTop: 10,
+    color: PRIMARY_COLOR,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1E3FF",
+    paddingBottom: 5,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#D1D5DB",
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 15,
+    backgroundColor: '#F9FAFB',
   },
-  switchRow: {
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    marginBottom: 15,
+    overflow: 'hidden',
+    backgroundColor: '#F9FAFB',
+  },
+  picker: { 
+    height: 55, 
+    width: '100%',
+  },
+  pickerItem: {
+    fontSize: 15,
+  },
+  optionGroup: {
+    marginBottom: 15,
+  },
+  optionGroupLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  optionRow: {
+    flexDirection: "row",
+    flexWrap: 'wrap',
+  },
+  filterOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginRight: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  unselectedOption: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#D1D5DB",
+  },
+  selectedOption: {
+    backgroundColor: PRIMARY_COLOR,
+    borderColor: PRIMARY_COLOR,
+  },
+  filterOptionText: {
+    color: "#374151",
+    fontWeight: "500",
+  },
+  selectedOptionText: {
+    color: "#fff",
+  },
+  modalFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 8,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  resetButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+    width: '35%',
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: "#4B5563",
+    fontWeight: '700',
+  },
+  applyButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: SUCCESS_COLOR,
+    width: '60%',
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: "#fff",
+    fontWeight: '700',
+  },
+  moderatorModalContent: {
+    width: "90%",
+    backgroundColor: CARD_BACKGROUND,
+    borderRadius: 12,
+    padding: 20,
+    alignSelf: 'center',
+    elevation: 10,
+  },
+  moderatorItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectedModerator: {
+    backgroundColor: "#EBF5FF",
+    borderRadius: 8,
+  },
+  moderatorName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  moderatorZone: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 15,
   },
-  closeButton: {
-    position: "absolute",
-    right: 10,
-    top: 10,
-    zIndex: 10,
-    backgroundColor: "#f1f1f1",
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  closeText: {
-    fontSize: 12,
-    color: "#333",
-    fontWeight: "600",
-  },
-  filterOption: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  selectedOption: {
-    backgroundColor: "#2196F3",
-    borderColor: "#2196F3",
-    color: "#fff",
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    marginTop: 15,
-    marginBottom: 8,
-    color: "#1565C0",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    paddingBottom: 4,
-  },
-  selectedCard: {
-    backgroundColor: "#E3F2FD",
-    borderColor: "#2196F3",
-    borderWidth: 1,
-  },
-  assignButton: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  assignButtonText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  modalTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  moderatorItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
-  },
-  selectedModerator: {
-    backgroundColor: "#E3F2FD",
-  },
-  selectedCard: {
-    backgroundColor: "#F0F9FF",
-  },
-  row: { flexDirection: "row", alignItems: "center" },
-  name: { fontSize: 12, fontWeight: "500" },
-  subText: { fontSize: 13, color: "#555" },
-    checkboxContainer: {
-      marginRight: 8,
-    },
-    selectedCard: {
-      backgroundColor: "#E3F2FD",
-      borderColor: "#2196F3",
-      borderWidth: 1,
-    },
-    assignButton: {
-      backgroundColor: "#2196F3",
-      padding: 12,
-      margin: 10,
-      borderRadius: 8,
-      alignItems: "center",
-    },
-    assignButtonText: {
-      color: "#fff",
-      fontWeight: "600",
-    },
-    tabsContainer: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginVertical: 10,
-      backgroundColor: "#f1f1f1",
-      borderRadius: 8,
-      padding: 5,
-    },
-    tab: {
-      flex: 1,
-      alignItems: "center",
-      paddingVertical: 8,
-      borderRadius: 6,
-    },
-    activeTab: {
-      backgroundColor: "#2196F3",
-    },
-    tabText: {
-      fontSize: 11,
-      color: "#555",
-      fontWeight: "500",
-    },
-    activeTabText: {
-      color: "#fff",
-      fontWeight: "600",
-    },
-    
+  homeButton: {
+    marginLeft: 10, // Adjust spacing from the screen edge
+    padding: 5,     // Make the touch target slightly larger
+    paddingRight: 20,
+},
 });
-  

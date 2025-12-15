@@ -60,10 +60,25 @@ export default function AddUserScreen() {
 
   // ✅ Submit handler
   const handleSubmit = async () => {
+    // 1. Basic required field validation
+    if (!form.name || !form.mobile || !form.password || !form.role_id) {
+        Alert.alert("Missing Fields", "Please fill in Name, Email, Mobile, Password, and Role.");
+        return;
+    }
+
+    // 2. Mobile Number Validation
+    const mobileNumber = form.mobile.trim();
+    if (mobileNumber.length !== 10 || !/^\d+$/.test(mobileNumber)) {
+        Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
+        return;
+    }
+
     try {
       const dataToSend = {
         ...form,
+        mobile: mobileNumber, // Use the validated/trimmed number
         role_id: form.role_id ? Number(form.role_id) : null,
+        zone_id: form.zone_id ? Number(form.zone_id) : null, // Ensure zone_id is a number or null
       };
 
       await api.post("/users", dataToSend);
@@ -121,6 +136,7 @@ export default function AddUserScreen() {
                 style={styles.input}
                 placeholder="Mobile"
                 keyboardType="phone-pad"
+                maxLength={10} // <-- Limits input to 10 characters
                 value={form.mobile}
                 onChangeText={(text) => handleChange("mobile", text)}
               />

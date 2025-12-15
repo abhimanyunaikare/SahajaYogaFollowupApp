@@ -1,15 +1,21 @@
 {
   "expo": {
-    "name": "sahajayogafollowup",
+    "name": "Sahajayoga Followup",
     "slug": "sahajayogafollowup",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/splash-sy-followup.png",
     "scheme": "sahajayogafollowup",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.abhimanyunn.sahajayogafollowup",
+      "splash": {
+        "image": "./assets/images/splash-sy-followup.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.abhimanyunn.sahajayogafollowup",
+      "splash": {
+        "image": "./assets/images/splash-sy.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
       "output": "static",
@@ -30,9 +42,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
+          "image": "./assets/images/splash-sy-followup.png",
+          "imageWidth": 400,
+          "resizeMode": "cover",
           "backgroundColor": "#ffffff",
           "dark": {
             "backgroundColor": "#000000"
@@ -40,9 +52,20 @@
         }
       ]
     ],
+    "splash": {
+      "image": "./assets/images/splash-sy.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6ebf176f-2856-4d16-8cc8-8c09d1abfaa0"
+      }
     }
   }
 }
