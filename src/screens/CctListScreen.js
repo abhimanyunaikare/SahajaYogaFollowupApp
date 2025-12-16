@@ -86,7 +86,7 @@ export default function TeamMembersScreen() {
                     {/* Phone Number with Icon */}
                     <View style={styles.detailRow}>
                         <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
-                        <Text style={styles.itemSubtitle}>{item.phone || 'N/A'}</Text>
+                        <Text style={styles.itemSubtitle}>{item.mobile || 'N/A'}</Text>
                     </View>
                     
                     {/* Assigned Seekers (Highlighted) */}

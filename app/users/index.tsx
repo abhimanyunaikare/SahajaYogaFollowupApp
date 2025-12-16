@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 15, 
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
   headerButton: { 
       marginRight: Platform.OS === 'ios' ? -5 : 0 

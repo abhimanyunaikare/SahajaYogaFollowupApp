@@ -28,7 +28,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.abhimanyunn.sahajayogafollowup",
       "splash": {
-        "image": "./assets/images/splash-sy.png",
+        "image": "./assets/images/splash-sy-followup.png",
         "resizeMode": "contain",
         "backgroundColor": "#FFFFFF"
       }

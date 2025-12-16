@@ -73,7 +73,7 @@ export default function SeekersListScreen() {
                 >
                   <View style={styles.itemContent}>
                       <Text style={styles.itemTitle}>{item.first_name +' '+ item.last_name}</Text>
-                      <Text style={styles.itemSubtitle}>Status: {item.status}</Text>
+                      {/* <Text style={styles.itemSubtitle}>Status: {item.status}</Text> */}
                       <Text style={styles.itemSubtitle}>Start Date: {formatDate(item.created_at)}</Text>
                   </View>
                   <Ionicons name="person-circle-outline" size={24} color="#007AFF" />

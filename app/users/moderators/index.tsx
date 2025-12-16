@@ -27,11 +27,13 @@ const ITEM_BACKGROUND = "#FFFFFF";
 export default function ZoneModeratorsScreen() {
     // Note: The file path is app/users/zonal/[zoneId]/moderators.js
     const { user} = useContext(AuthContext);
-    const { zoneId, name: zoneName } = useLocalSearchParams(); 
+    const { zoneId } = useLocalSearchParams(); 
     const [moderators, setModerators] = useState([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
     const targetZoneId = zoneId || user?.zone_id;
+
+    const effective_zone_name = user?.zone_name || 'Selected Zone';
 
     useEffect(() => {
 // Only run fetch if we have a valid zone ID
@@ -78,7 +80,7 @@ export default function ZoneModeratorsScreen() {
     const EmptyList = () => (
         <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={40} color={SUBTLE_TEXT_COLOR} />
-            <Text style={styles.emptyText}>No mentors found in {zoneName}.</Text>
+            <Text style={styles.emptyText}>No mentors found in {effective_zone_name}.</Text>
         </View>
     );
 
@@ -86,7 +88,7 @@ export default function ZoneModeratorsScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: `${zoneName} Mentors`,
+                    title: `${effective_zone_name} Mentors`,
                 }}
             />
             <View style={styles.container}>

@@ -159,6 +159,7 @@ const styles = StyleSheet.create({
   listContent: {
       paddingHorizontal: 15,
       paddingVertical: 15,
+      paddingBottom: 100,
   },
   
   // --- Optimized Card Styles ---

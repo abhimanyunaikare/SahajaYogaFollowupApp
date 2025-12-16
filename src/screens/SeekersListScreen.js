@@ -281,6 +281,7 @@ export default function SeekersListScreen() {
     // Apply filters and search term together
     const combinedFilters = {
         ...params,
+        filter_zone_id: filters.zone_id,
         name: filters.name, // Use the current filter's name (which might not be debounced yet)
     };
 
@@ -630,14 +631,16 @@ export default function SeekersListScreen() {
 
             </ScrollView>
 
-            <View style={styles.modalFooter}>
-                <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-                    <Text style={styles.resetButtonText}>Reset</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
-                    <Text style={styles.applyButtonText}>Apply Filters</Text>
-                </TouchableOpacity>
-            </View>
+            <SafeAreaView edges={['bottom']} style={styles.safeAreaFooter}>
+              <View style={styles.modalFooter}>
+                  <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+                      <Text style={styles.resetButtonText}>Reset</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
+                      <Text style={styles.applyButtonText}>Apply Filters</Text>
+                  </TouchableOpacity>
+              </View>
+            </SafeAreaView>
           </View>
         </View>
       </Modal>

@@ -29,6 +29,18 @@ const PERMISSIONS = {
   USERS: 3,
   ROLES: 5,
   REPORTS: 7,
+  CCT: 9,
+  ZONAL: 10,
+  MENTOR: 11,
+  ZONE: 12,
+  AREA: 13,
+};
+
+// Define a separate style for the header title to ensure correct font size and weight
+const HEADER_TITLE_STYLE = {
+    fontSize: 20, 
+    fontWeight: '700', // Use '700' or 'bold' for prominence
+    color: TEXT_COLOR, // Match your app's main text color
 };
 
 export default function HomeScreen() {
@@ -64,9 +76,11 @@ export default function HomeScreen() {
       { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports", permissionId: PERMISSIONS.REPORTS },
       { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles", permissionId: PERMISSIONS.ROLES },
       { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users", permissionId: PERMISSIONS.USERS },
-      { id: "9", title: "CCT Users", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.USERS },
-      { id: "10", title: "Zonal Statistics", icon: "man-outline", color: "#c27f5d", route: "/users/zonal", permissionId: PERMISSIONS.USERS },
-      { id: "11", title: "Moderators", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.USERS },
+      { id: "6", title: "CCT Users", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.CCT },
+      { id: "7", title: "Zonal Statistics", icon: "man-outline", color: "#c27f5d", route: "/users/zonal", permissionId: PERMISSIONS.ZONAL },
+      { id: "8", title: "Mentors", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.MENTORS },
+      { id: "9", title: "Zone", icon: "compass-outline", color: "#3e857e", route: "/zone", permissionId: PERMISSIONS.ZONE },
+      { id: "10", title: "Area", icon: "location-outline", color: "#803e85", route: "/area", permissionId: PERMISSIONS.AREA },
     ];
 
     const handleLogout = () => {
@@ -151,36 +165,62 @@ export default function HomeScreen() {
     };
 
     return (
-      <SafeAreaView style={styles.container}>
-          
-          {/* OPTIMIZED HEADER */}
-          <View style={styles.header}>
-            <View style={styles.userInfo}>
-                <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
-                <Text style={styles.roleText}>{user?.role_name || "No Role"}</Text>
-            </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                <Ionicons name="log-out-outline" size={24} color="#F44336" />
-            </TouchableOpacity>
-          </View>
-          
-          {/* STATISTICS CARD (Condensed) */}
-          {renderStatsCard()}
 
-          {/* NAVIGATION GRID TITLE */}
-          <Text style={styles.menuTitle}>Modules</Text>
-
-          {/* NAVIGATION GRID (3-Column Dense Grid) */}
-          <FlatList
-            data={accessibleMenuItems}
-            renderItem={renderGridItem}
-            keyExtractor={(item) => item.id}
-            key={NUM_COLUMNS} 
-            numColumns={NUM_COLUMNS} 
-            columnWrapperStyle={styles.row}
-            contentContainerStyle={styles.gridContainer}
+        <>
+        <Stack.Screen 
+              options={{
+                  // Set the custom title component
+                  headerTitle: () => (
+                      <Text style={HEADER_TITLE_STYLE}>
+                          {APP_NAME}
+                      </Text>
+                  ),
+                  // Ensure left alignment
+                  headerTitleAlign: 'left',
+                  // Hide the automatically generated back button/arrow
+                  headerLeft: () => null, 
+                  // Ensure there is no gap/padding between the title and the left edge
+                  headerTitleContainerStyle: { 
+                    left: 15, // Aligns the title's container to the left edge (adjust as needed)
+                    right: 0,
+                  },
+                  // Hide the default header (which usually contains the title and back button) 
+                  // since we are using a custom header area for user info/logout.
+                  headerShown: false, // <-- Crucial if you want full control over the area
+              }} 
           />
-        </SafeAreaView>
+            
+        <SafeAreaView style={styles.container}>
+            
+            {/* OPTIMIZED HEADER */}
+            <View style={styles.header}>
+                <View style={styles.userInfo}>
+                    <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
+                    <Text style={styles.roleText}>{user?.role_name || "No Role"}</Text>
+                </View>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                    <Ionicons name="log-out-outline" size={24} color="#F44336" />
+                </TouchableOpacity>
+            </View>
+            
+            {/* STATISTICS CARD (Condensed) */}
+            {renderStatsCard()}
+
+            {/* NAVIGATION GRID TITLE */}
+            <Text style={styles.menuTitle}>Modules</Text>
+
+            {/* NAVIGATION GRID (3-Column Dense Grid) */}
+            <FlatList
+                data={accessibleMenuItems}
+                renderItem={renderGridItem}
+                keyExtractor={(item) => item.id}
+                key={NUM_COLUMNS} 
+                numColumns={NUM_COLUMNS} 
+                columnWrapperStyle={styles.row}
+                contentContainerStyle={styles.gridContainer}
+            />
+            </SafeAreaView>
+        </>
     );
   }
 
@@ -190,6 +230,22 @@ export default function HomeScreen() {
         backgroundColor: BACKGROUND_COLOR, 
         paddingHorizontal: 15,
         paddingTop: 5, 
+    },
+    
+    customHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    appTitleText: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: PRIMARY_COLOR, // Using primary color to highlight the app name
+    },
+    rightHeaderContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     
     // --- Optimized Header Styles ---

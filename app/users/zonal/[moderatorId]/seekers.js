@@ -60,6 +60,16 @@ export default function ModeratorSeekersScreen() {
         </View>
     );
 
+     // Helper function for date formatting
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+        return new Date(dateString).toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    };
+    
     return (
         <>
             <Stack.Screen
@@ -89,6 +99,14 @@ export default function ModeratorSeekersScreen() {
                                     <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
                                     <Text style={styles.itemSubtitle}>
                                         {item.mobile || 'N/A'}
+                                    </Text>
+                                </View>
+
+                                {/* Last updated */}
+                                <View style={styles.detailRow}>
+                                    <Ionicons name="time-outline" size={14} color={SUBTLE_TEXT_COLOR} />
+                                    <Text style={styles.itemSubtitle}>
+                                    Last Updated: **{formatDate(item.updated_at) || 'N/A'}
                                     </Text>
                                 </View>
                             </View>

@@ -19,7 +19,7 @@ const SUBTLE_TEXT_COLOR = "#757575";
 const BACKGROUND_COLOR = "#F4F4F4"; // Light grey background
 const ITEM_BACKGROUND = "#FFFFFF"; // Pure white card background
 
-export default function RolesScreen() {
+export default function ZoneScreen() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -27,10 +27,10 @@ export default function RolesScreen() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const response = await api.get("/roles");
+        const response = await api.get("/zones");
         setRoles(response.data);
       } catch (error) {
-        console.log("Error fetching roles:", error.message);
+        console.log("Error fetching zones:", error.message);
       } finally {
         setLoading(false);
       }
@@ -46,7 +46,7 @@ export default function RolesScreen() {
   const EmptyList = () => (
       <View style={styles.emptyContainer}>
           <Ionicons name="key-outline" size={40} color={SUBTLE_TEXT_COLOR} />
-          <Text style={styles.emptyText}>No roles found. Tap '+' to create one.</Text>
+          <Text style={styles.emptyText}>No zones found. Tap '+' to create one.</Text>
       </View>
   );
 
@@ -54,10 +54,10 @@ export default function RolesScreen() {
      <>
       <Stack.Screen
         options={{
-          title: "Roles List",
+          title: "Zones List",
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => router.push("/roles/add")}
+              onPress={() => router.push("/zone/add")}
               style={styles.headerButton}
             >
               <Ionicons name="add-circle" size={26} color={PRIMARY_COLOR} />
@@ -73,7 +73,7 @@ export default function RolesScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.itemCard}
-              onPress={() => router.push(`/roles/edit/${item.id}`)}
+              onPress={() => router.push(`/zone/edit/${item.id}`)}
             >
               {/* Subtle color bar on the left */}
               <View style={styles.itemColorBar} /> 
