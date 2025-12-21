@@ -89,8 +89,16 @@ export default function EditUserScreen() {
       Alert.alert("Success", "User updated successfully!");
       router.replace("/users");
     } catch (error) {
-      Alert.alert("Error", "Failed to update user");
-    }
+      console.log("Error adding seeker:", error.response?.data || error.message);
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }
   };
 
   return (

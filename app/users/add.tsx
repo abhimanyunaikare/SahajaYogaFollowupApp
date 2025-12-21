@@ -29,6 +29,7 @@ export default function AddUserScreen() {
   const [roles, setRoles] = useState([]);
   const [zones, setZones] = useState([]);
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (key, value) => setForm({ ...form, [key]: value });
 
@@ -84,10 +85,17 @@ export default function AddUserScreen() {
       await api.post("/users", dataToSend);
       Alert.alert("Success", "User added successfully!");
       router.replace("/users");
-    } catch (error) {
-      console.error("Error adding user:", error.response?.data || error.message);
-      Alert.alert("Error", "Failed to add user");
-    }
+    }catch (error) {
+      console.log("Error adding seeker:", error.response?.data || error.message);
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }
   };
 
   return (
@@ -145,14 +153,24 @@ export default function AddUserScreen() {
             {/* 🔒 Password */}
             <View style={styles.inputRow}>
               <Ionicons name="lock-closed-outline" size={20} color="#555" style={styles.icon} />
+
               <TextInput
                 style={styles.input}
                 placeholder="Password"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 value={form.password}
                 onChangeText={(text) => handleChange("password", text)}
               />
+
+              <TouchableWithoutFeedback onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#555"
+                />
+              </TouchableWithoutFeedback>
             </View>
+
 
             {/* 🎭 Role */}
             <Text style={styles.label}>Select Role</Text>

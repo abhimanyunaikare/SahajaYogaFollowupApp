@@ -38,9 +38,16 @@ export default function AddRoleScreen() {
       Alert.alert("Success", "Role added successfully!");
       router.replace("/roles");
     } catch (error) {
-      console.error("Error adding role:", error.response?.data || error.message);
-      Alert.alert("Error", "Failed to add role");
-    }
+      console.log("Error adding seeker:", error.response?.data || error.message);
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }
   };
 
   return (

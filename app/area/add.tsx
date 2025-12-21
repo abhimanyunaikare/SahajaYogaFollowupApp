@@ -42,9 +42,16 @@ export default function AddAreaScreen() {
             setForm(f => ({ ...f, zone_id: response.data[0].id }));
         }
       } catch (error) {
-        console.error("Error fetching zones:", error.message);
-        Alert.alert("Error", "Failed to load zones for selection.");
-      } finally {
+        console.log("Error adding seeker:", error.response?.data || error.message);
+    
+        const errorMessage = 
+            error.response?.data?.message || 
+            error.response?.data?.error || 
+            error.message || 
+            "Something went wrong";
+    
+        Alert.alert("Error", errorMessage);
+    }finally {
         setLoading(false);
       }
     };

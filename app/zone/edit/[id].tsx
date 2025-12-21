@@ -71,8 +71,15 @@ export default function EditZoneScreen() {
       Alert.alert("Success", "Zone updated successfully!"); 
       router.replace("/zone"); // Navigate back to the Zone list
     } catch (error) {
-      console.log("Error updating zone:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "Failed to update zone.");
+        console.log("Error adding seeker:", error.response?.data || error.message);
+    
+        const errorMessage = 
+            error.response?.data?.message || 
+            error.response?.data?.error || 
+            error.message || 
+            "Something went wrong";
+    
+        Alert.alert("Error", errorMessage);
     } finally {
         setSubmitting(false);
     }

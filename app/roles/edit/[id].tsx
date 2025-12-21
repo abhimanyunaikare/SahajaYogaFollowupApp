@@ -79,9 +79,16 @@ export default function EditRoleScreen() {
       Alert.alert("Success", "Role updated successfully!");
       router.replace("/roles");
     } catch (error) {
-      console.log("Error updating role:", error.response?.data || error.message);
-      Alert.alert("Error", "Failed to update role");
-    }
+      console.log("Error adding seeker:", error.response?.data || error.message);
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }
   };
 
   if (loading) {

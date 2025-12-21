@@ -42,7 +42,7 @@ export default function EditAreaScreen() {
 
     try {
       // 1. Fetch Area details
-      const areaRes = await api.get(`/areas/${id}`); // 🛑 API call changed to /areas
+      const areaRes = await api.get(`/areas/${id}`); 
       const area = areaRes.data;
 
       // 2. Fetch all Zones
@@ -53,13 +53,19 @@ export default function EditAreaScreen() {
       // Set the form state with the area's current data
       setForm({
         name: area.name || "",
-        zone_id: area.zone_id, // 🛑 Set the current zone_id
+        zone_id: area.zone_id, 
       });
 
     } catch (error) {
-      console.error("Error fetching data:", error.message);
-      Alert.alert("Error", "Failed to fetch area or zone details.");
-      router.back();
+        console.log("Error adding seeker:", error.response?.data || error.message);
+    
+        const errorMessage = 
+            error.response?.data?.message || 
+            error.response?.data?.error || 
+            error.message || 
+            "Something went wrong";
+    
+        Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }

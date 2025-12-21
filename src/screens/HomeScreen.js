@@ -25,7 +25,7 @@ const SUBTLE_TEXT_COLOR = "#757575";
 const NUM_COLUMNS = 3; 
 
 const PERMISSIONS = {
-  ADD_SEEKER: 2,
+  ADD_SEEKER: 1,
   USERS: 3,
   ROLES: 5,
   REPORTS: 7,

@@ -1,11 +1,11 @@
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import React, { useEffect, useLayoutEffect, useState, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useState, useCallback , useContext} from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View , Linking} from "react-native";
 import api from "../api/apiClient";
 // Import useFocusEffect from the underlying React Navigation package
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons'; 
-
+import { AuthContext } from "../../src/context/AuthContext";
 
 // Helper component for displaying Yes/No status as a badge
 const StatusBadge = ({ isTrue }) => (
@@ -64,7 +64,9 @@ export default function SeekerProfileScreen() {
   const [seeker, setSeeker] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
-
+  const { user } = useContext(AuthContext);
+  const canEditSeeker = user.permissions.includes(user.permissions_map.edit_seeker);
+  
   const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
   const router = useRouter();
 
@@ -73,6 +75,8 @@ export default function SeekerProfileScreen() {
     setLoading(true);
     try {
       const response = await api.get(`/seekers/${id}`);
+      console.log(response.data);
+
       setSeeker(response.data);        
     } catch (error) {
       console.error("Error fetching seeker:", error.message);
@@ -170,9 +174,19 @@ export default function SeekerProfileScreen() {
               <View style={styles.separator} />
 
               <ProfileDetail 
+                iconName="body-outline" 
+                label="Gender" 
+                value={seeker.sex || "N/A"} 
+              />
+              <ProfileDetail 
+                iconName="calendar-outline" 
+                label="Age range" 
+                value={seeker.age_range+" (years)" || "N/A"} 
+              />
+              <ProfileDetail 
                 iconName="location-outline" 
-                label="City" 
-                value={seeker.city || "N/A"} 
+                label="Area" 
+                value={seeker.area?.name  || "N/A"} 
               />
               <ProfileDetail 
                 iconName="map-outline" 
@@ -195,7 +209,7 @@ export default function SeekerProfileScreen() {
               <ProfileDetail 
                 iconName="person-circle-outline" 
                 label="Sahajayogi Responsible" 
-                value={seeker.moderator ? seeker.moderator.name : 'Moderator not assigned'} 
+                value={seeker.moderator ? seeker.moderator.name : 'Mentor not assigned'} 
               />
               
               <View style={styles.dateInfo}>
@@ -215,16 +229,21 @@ export default function SeekerProfileScreen() {
                 <StatusBadge isTrue={seeker.interested_in_followup} />
             </View>
 
-            <TouchableOpacity
-                style={styles.editChecklistButton}
-                onPress={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}`)}
-            >
-                <MaterialIcons name="playlist-add-check" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.editChecklistText}>Edit Checklist</Text>
-            </TouchableOpacity>
+            {user.permissions.includes(2) && (
+                <TouchableOpacity
+                    style={styles.editChecklistButton}
+                    onPress={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}`)}
+                >
+                    <MaterialIcons name="playlist-add-check" size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.editChecklistText}>Edit Checklist</Text>
+                </TouchableOpacity>
+            )}
            
             {/* --- Checklist - Pratishthan Sessions --- */}
-            <Text style={styles.sectionHeader}>🧘 Pratishthan Sessions</Text>
+            <Text style={styles.sectionHeader}>🧘 Pratishthan Session Updates</Text>
+            <Text style={styles.dateText}>(You can add comments after each session)</Text>
+            
+
             <View style={styles.checklistCard}>
                 <ChecklistItem 
                     label="Attended 1st Session" 

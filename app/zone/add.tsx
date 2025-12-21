@@ -14,9 +14,16 @@ export default function AddZoneScreen() {
       Alert.alert("Success", "Zone added successfully!");
       router.replace("/zone");
     } catch (error) {
-      console.error("Error adding zone:", error.response?.data || error.message);
-      Alert.alert("Error", "Failed to add zone");
-    }
+      console.log("Error adding seeker:", error.response?.data || error.message);
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }
   };
 
   return (

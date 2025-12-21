@@ -44,9 +44,17 @@ export default function LoginScreen() {
     }
   }, [loading, user]);
 
+  
+
   const handleLogin = async () => {
     if (!mobile || !password) {
       Alert.alert("Error", "Please enter both mobile number and password.");
+      return;
+    }
+
+
+    if (mobile.length !== 10) {
+      Alert.alert("Invalid Mobile Number", "Please enter a valid 10-digit mobile number.");
       return;
     }
     
@@ -123,11 +131,19 @@ export default function LoginScreen() {
               placeholder="Mobile Number"
               placeholderTextColor="#A0A0A0"
               value={mobile}
-              onChangeText={setMobile}
-              keyboardType="phone-pad"
+              onChangeText={(text) => {
+                // Allow only digits & max 10 characters
+                const numericText = text.replace(/[^0-9]/g, '');
+                if (numericText.length <= 10) {
+                  setMobile(numericText);
+                }
+              }}
+              keyboardType="number-pad"
               returnKeyType="next"
-              editable={!buttonLoading} 
+              maxLength={10}
+              editable={!buttonLoading}
             />
+
           </View>
 
           {/* Password Input with Toggle */}

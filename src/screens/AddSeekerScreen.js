@@ -170,8 +170,15 @@ export default function AddSeekerScreen() {
 
     } catch (error) {
       console.log("Error adding seeker:", error.response?.data || error.message);
-      Alert.alert("Error", "Failed to add seeker. Please check your data.");
-    } finally {
+  
+      const errorMessage = 
+          error.response?.data?.message || 
+          error.response?.data?.error || 
+          error.message || 
+          "Something went wrong";
+  
+      Alert.alert("Error", errorMessage);
+  }finally {
       setIsSaving(false);
     }
   }, [form, isSaving, router, typeValue]);

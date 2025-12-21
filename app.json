@@ -2,70 +2,27 @@
   "expo": {
     "name": "Sahajayoga Followup",
     "slug": "sahajayogafollowup",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/splash-sy-followup.png",
-    "scheme": "sahajayogafollowup",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.abhimanyunn.sahajayogafollowup",
-      "splash": {
-        "image": "./assets/images/splash-sy-followup.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF"
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.abhimanyunn.sahajayogafollowup",
-      "splash": {
-        "image": "./assets/images/splash-sy-followup.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF"
-      }
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-sy-followup.png",
-          "imageWidth": 400,
-          "resizeMode": "cover",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ]
-    ],
+    "version": "1.5.0",
     "splash": {
-      "image": "./assets/images/splash-sy.png",
+      "image": "./assets/images/splash_sy.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "6ebf176f-2856-4d16-8cc8-8c09d1abfaa0"
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/splash_sy.png",
+        "backgroundColor": "#FFFFFF"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash_sy.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
+    ]
   }
 }

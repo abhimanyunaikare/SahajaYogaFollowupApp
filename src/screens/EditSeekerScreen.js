@@ -294,7 +294,8 @@ export default function EditSeekerScreen() {
                 placeholder="Mobile"
                 keyboardType="phone-pad"
                 value={form.mobile}
-                onChangeText={(text) => handleChange("mobile", text)}
+                editable={false}
+                selectTextOnFocus={false}
             />
         </FieldWrapper>
 
