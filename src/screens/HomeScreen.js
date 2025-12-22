@@ -78,7 +78,7 @@ export default function HomeScreen() {
       { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users", permissionId: PERMISSIONS.USERS },
       { id: "6", title: "CCT Users", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.CCT },
       { id: "7", title: "Zonal Statistics", icon: "man-outline", color: "#c27f5d", route: "/users/zonal", permissionId: PERMISSIONS.ZONAL },
-      { id: "8", title: "Mentors", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.MENTORS },
+      { id: "8", title: "Mentors", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.MENTOR },
       { id: "9", title: "Zone", icon: "compass-outline", color: "#3e857e", route: "/zone", permissionId: PERMISSIONS.ZONE },
       { id: "10", title: "Area", icon: "location-outline", color: "#803e85", route: "/area", permissionId: PERMISSIONS.AREA },
     ];
@@ -196,7 +196,7 @@ export default function HomeScreen() {
             <View style={styles.header}>
                 <View style={styles.userInfo}>
                     <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
-                    <Text style={styles.roleText}>{user?.role_name || "No Role"}</Text>
+                    <Text style={styles.roleText}>{user?.role_name || "No Role"}, {user?.zone_name || "No Zone"}</Text>
                 </View>
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
                     <Ionicons name="log-out-outline" size={24} color="#F44336" />
@@ -204,8 +204,8 @@ export default function HomeScreen() {
             </View>
             
             {/* STATISTICS CARD (Condensed) */}
-            {renderStatsCard()}
-
+            {(user?.role_id == 1 || user?.role_id == 2) && renderStatsCard()}
+            
             {/* NAVIGATION GRID TITLE */}
             <Text style={styles.menuTitle}>Modules</Text>
 

@@ -24,6 +24,7 @@ export default function EditUserScreen() {
   const [form, setForm] = useState({
     name: "",
     email: "",
+    password: "",
     mobile: "",
     role_id: "",
     zone_id: "",
@@ -45,6 +46,7 @@ export default function EditUserScreen() {
         setForm({
           name: userData.name || "",
           email: userData.email || "",
+          password: userData.password || "",
           mobile: userData.mobile || "",
           role_id: userData.role_id ? String(userData.role_id) : "",
           zone_id: userData.zone_id ? String(userData.zone_id) : "",
@@ -137,6 +139,17 @@ export default function EditUserScreen() {
                 placeholder="Email"
                 value={form.email}
                 onChangeText={(value) => handleChange("email", value)}
+              />
+            </View>
+
+            {/* ✉️ Password */}
+            <View style={styles.inputRow}>
+              <Ionicons name="mail-outline" size={20} color="#555" style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={form.password}
+                onChangeText={(value) => handleChange("password", value)}
               />
             </View>
 

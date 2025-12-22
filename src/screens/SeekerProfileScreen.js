@@ -63,10 +63,13 @@ const handleCall = (phoneNumber) => {
 export default function SeekerProfileScreen() {
   const [seeker, setSeeker] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigation = useNavigation();
-  const { user } = useContext(AuthContext);
-  const canEditSeeker = user.permissions.includes(user.permissions_map.edit_seeker);
-  
+  const navigation = useNavigation();const { user } = useContext(AuthContext);
+
+  // Use optional chaining and ensure we have an array before calling .includes
+  const canEditSeeker = Array.isArray(user?.permissions) && 
+                        user?.permissions_map?.edit_seeker && 
+                        user.permissions.includes(user.permissions_map.edit_seeker);
+                        
   const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
   const router = useRouter();
 
@@ -212,6 +215,12 @@ export default function SeekerProfileScreen() {
                 value={seeker.moderator ? seeker.moderator.name : 'Mentor not assigned'} 
               />
               
+              <ProfileDetail 
+                iconName="reader-outline" 
+                label="Comment" 
+                value={seeker.comment || "N/A"} 
+              />
+              
               <View style={styles.dateInfo}>
                 <Text style={styles.dateText}>
                   Entry Date: **{formatDate(seeker.created_at)}**
@@ -225,7 +234,7 @@ export default function SeekerProfileScreen() {
 
             {/* --- Follow-up & Checklist Button --- */}
             <View style={styles.followUpContainer}>
-                <Text style={styles.followUpLabel}>Interested in Follow-up:</Text>
+                <Text style={styles.followUpLabel}>Interested in Sahajayoga & followup:</Text>
                 <StatusBadge isTrue={seeker.interested_in_followup} />
             </View>
 
@@ -240,7 +249,7 @@ export default function SeekerProfileScreen() {
             )}
            
             {/* --- Checklist - Pratishthan Sessions --- */}
-            <Text style={styles.sectionHeader}>🧘 Pratishthan Session Updates</Text>
+            <Text style={styles.sectionHeader}>🧘 Pratishthan Session Updates (Yuva for Pratishthan)</Text>
             <Text style={styles.dateText}>(You can add comments after each session)</Text>
             
 
@@ -268,7 +277,7 @@ export default function SeekerProfileScreen() {
             </View>
 
             {/* --- Checklist - General & Monthly Follow-up --- */}
-            <Text style={styles.sectionHeader}>✅ General Follow-up</Text>
+            <Text style={styles.sectionHeader}>✅ General Follow-up (Mentors)</Text>
             <View style={styles.checklistCardSecondary}>
                 <ChecklistItem 
                     label="Feeling Vibrations" 
@@ -288,7 +297,7 @@ export default function SeekerProfileScreen() {
                 />
             </View>
 
-            <Text style={styles.sectionHeader}>🗓️ Monthly Follow-up</Text>
+            <Text style={styles.sectionHeader}>🗓️ Monthly Follow-up (Mentors)</Text>
             <View style={styles.checklistCardSecondary}>
                 <ChecklistItem 
                     label="Attended 1st Month" 

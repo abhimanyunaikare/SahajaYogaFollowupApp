@@ -131,14 +131,15 @@ export default function SeekersListScreen() {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   
   const { user } = useContext(AuthContext);
-  const role = Number(user.role_id);
+  const role = user?.role_id ? Number(user.role_id) : null;
+  const zoneid = user?.zone_id ? Number(user.zone_id) : null;
   const isDisabled = !(role === 2 || role === 3);
 
-  const modalTitle = role === 2 ? "Caller" : role === 3 ? "Moderator" : "Not Allowed";
+  const modalTitle = role === 2 ? "Caller" : role === 3 ? "Mentor" : "Not Allowed";
                       
   const getButtonLabel = () => {
     if (role === 2) return `Assign Caller (${selectedSeekers.length})`;
-    if (role === 3) return `Assign Moderator (${selectedSeekers.length})`;
+    if (role === 3) return `Assign Mentor (${selectedSeekers.length})`;
     return "Not Allowed";
   };
   
@@ -224,16 +225,14 @@ export default function SeekersListScreen() {
 
   
   useFocusEffect(
-    useCallback(() => {
-        // Only run if we are not currently loading for the first time
-        if (!initialLoading) {
-            // Re-fetch using the current active filters
-            fetchSeekers(currentFilters, 1, true);
-        } else {
-            // Initial load sequence
-            fetchSeekers(currentFilters, 1, true);
-        }
-    }, [user.id, user.zone_id, role, currentFilters])
+      useCallback(() => {
+          // Guard Clause: Don't fetch if user data isn't ready yet
+          if (!user?.id) return;
+
+          // Re-fetch sequence
+          fetchSeekers(currentFilters, 1, true);
+
+      }, [user?.id, user?.zone_id, role, currentFilters]) 
   );
   
   // Initial zones fetch
@@ -326,16 +325,16 @@ export default function SeekersListScreen() {
   
   const fetchModerators = async () => {
     try {
-      const url = `/users?user_type=seeker&role_id=${role}`;
+      const url = `/users?user_type=seeker&role_id=${role}&zone_id=${zoneid}`;
       const response = await api.get(url);
       setModerators(response.data);
     } catch (error) {
-      console.error("Error fetching moderators:", error);
+      console.error("Error fetching mentors:", error);
     }
   };
   
   const assignModerator = async () => {
-    if (!selectedModerator) return Alert.alert("Please select a caller/moderator");
+    if (!selectedModerator) return Alert.alert("Please select a caller/mentor");
   
     try {
       await api.post("/seekers/assign-moderator", {
@@ -348,8 +347,8 @@ export default function SeekersListScreen() {
       setSelectedSeekers([]);
       fetchSeekers(currentFilters, 1, true); // Refresh list
     } catch (error) {
-      console.error("Error assigning moderator:", error);
-      Alert.alert("Error", "Could not assign caller/moderator.");
+      console.error("Error assigning mentor:", error);
+      Alert.alert("Error", "Could not assign caller/mentor.");
     }
   };
   
@@ -586,7 +585,7 @@ export default function SeekersListScreen() {
               
               {/* Moderator Assigned */}
               <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Moderator Assigned</Text>
+                <Text style={styles.optionGroupLabel}>Mentor Assigned</Text>
                 <View style={styles.optionRow}>
                     <FilterOption label="Yes" isSelected={filters.moderator_id === true} onPress={() => setFilters({ ...filters, moderator_id: true })} />
                     <FilterOption label="No" isSelected={filters.moderator_id === false} onPress={() => setFilters({ ...filters, moderator_id: false })} />
@@ -646,7 +645,7 @@ export default function SeekersListScreen() {
       </Modal>
 
 
-      {/* 🪟 Moderator/Caller Assignment Modal */}
+      {/* 🪟 Mentor/Caller Assignment Modal */}
       <Modal visible={moderatorModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
             <View style={styles.moderatorModalContent}>
@@ -670,7 +669,7 @@ export default function SeekersListScreen() {
 
                 <View style={styles.modalButtons}>
                     <Button title="Cancel" color="gray" onPress={() => setModeratorModalVisible(false)} />
-                    <Button title={`Assign ${selectedSeekers.length} Seeker(s)`} onPress={assignModerator} disabled={!selectedModerator} />
+                    <Button title={`Assign ${selectedSeekers.length} Seeker(s)`} color="#00BCD4" onPress={assignModerator} />
                 </View>
             </View>
         </View>
@@ -855,6 +854,7 @@ const styles = StyleSheet.create({
     right: 10,
     backgroundColor: PRIMARY_COLOR,
     padding: 15,
+    marginBottom: 25,
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
@@ -876,6 +876,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end", 
+    paddingBottom: 25,
+
   },
   modalContent: {
     width: "100%",
@@ -885,6 +887,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 15,
+    paddingBottom: 25,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -421,33 +421,59 @@ export default function EditSeekerScreen() {
         {/* --- Switch Fields --- */}
         <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Status & Follow-up</Text>
         <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Interested in Follow-up</Text>
-            <Switch
-                value={form.interested_in_followup}
-                onValueChange={(val) => handleChange("interested_in_followup", val)}
-                thumbColor={form.interested_in_followup ? PRIMARY_COLOR : "#F5F5F5"}
-                trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
-            />
+            <Text style={styles.switchLabel}>Seeker Called (Initial Contact)</Text>
+            
+            <View style={styles.switchWrapper}>
+                {/* "No" on the left */}
+                <Text style={[
+                    styles.yesNoText, 
+                    { color: !form.called ? "#F44336" : SUBTLE_COLOR, fontWeight: !form.called ? "700" : "400" }
+                ]}>
+                    No
+                </Text>
+
+                <Switch
+                    value={form.called}
+                    onValueChange={(val) => handleChange("called", val)}
+                    thumbColor={form.called ? PRIMARY_COLOR : "#F5F5F5"}
+                    trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
+                />
+
+                {/* "Yes" on the right */}
+                <Text style={[
+                    styles.yesNoText, 
+                    { marginLeft: 8, marginRight: 0, color: form.called ? PRIMARY_COLOR : SUBTLE_COLOR, fontWeight: form.called ? "700" : "400" }
+                ]}>
+                    Yes
+                </Text>
+            </View>
         </View>
 
         <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Seeker Called (Initial Contact)</Text>
-            <Switch
-                value={form.called}
-                onValueChange={(val) => handleChange("called", val)}
-                thumbColor={form.called ? PRIMARY_COLOR : "#F5F5F5"}
-                trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
-            />
-        </View>
-        
-        <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Move to Zonal Monitoring</Text>
-            <Switch
-                value={form.move_to_zonal_monitoring}
-                onValueChange={(val) => handleChange("move_to_zonal_monitoring", val)}
-                thumbColor={form.move_to_zonal_monitoring ? PRIMARY_COLOR : "#F5F5F5"}
-                trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
-            />
+            <Text style={styles.switchLabel}>Interested in Sahajayoga followup</Text>
+            
+            <View style={styles.switchWrapper}>
+                <Text style={[
+                    styles.yesNoText, 
+                    { color: !form.interested_in_followup ? "#F44336" : SUBTLE_COLOR, fontWeight: !form.interested_in_followup ? "700" : "400" }
+                ]}>
+                    No
+                </Text>
+
+                <Switch
+                    value={form.interested_in_followup}
+                    onValueChange={(val) => handleChange("interested_in_followup", val)}
+                    thumbColor={form.interested_in_followup ? PRIMARY_COLOR : "#F5F5F5"}
+                    trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
+                />
+
+                <Text style={[
+                    styles.yesNoText, 
+                    { marginLeft: 8, marginRight: 0, color: form.interested_in_followup ? PRIMARY_COLOR : SUBTLE_COLOR, fontWeight: form.interested_in_followup ? "700" : "400" }
+                ]}>
+                    Yes
+                </Text>
+            </View>
         </View>
 
         {/* --- Comment/Note --- */}
@@ -462,6 +488,33 @@ export default function EditSeekerScreen() {
                 numberOfLines={4}
             />
         </FieldWrapper>
+        
+        <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>Move to Zonal Coordinator</Text>
+            
+            <View style={styles.switchWrapper}>
+                <Text style={[
+                    styles.yesNoText, 
+                    { color: !form.move_to_zonal_monitoring ? "#F44336" : SUBTLE_COLOR, fontWeight: !form.move_to_zonal_monitoring ? "700" : "400" }
+                ]}>
+                    No
+                </Text>
+
+                <Switch
+                    value={form.move_to_zonal_monitoring}
+                    onValueChange={(val) => handleChange("move_to_zonal_monitoring", val)}
+                    thumbColor={form.move_to_zonal_monitoring ? PRIMARY_COLOR : "#F5F5F5"}
+                    trackColor={{ false: "#D1D1D6", true: "#A0C8F9" }}
+                />
+
+                <Text style={[
+                    styles.yesNoText, 
+                    { marginLeft: 8, marginRight: 0, color: form.move_to_zonal_monitoring ? PRIMARY_COLOR : SUBTLE_COLOR, fontWeight: form.move_to_zonal_monitoring ? "700" : "400" }
+                ]}>
+                    Yes
+                </Text>
+            </View>
+        </View>
 
         <Text style={styles.requiredText}>* Indicates Required Field</Text>
         
@@ -567,6 +620,15 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
       },
       // --- Switch Styles ---
+      switchWrapper: {
+          flexDirection: 'row',
+          alignItems: 'center',
+      },
+      yesNoText: {
+          marginRight: 8, 
+          fontSize: 14,
+          // Width removed so it wraps naturally
+      },
       switchContainer: { 
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -575,12 +637,9 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1,
         borderColor: BORDER_COLOR,
-        padding: 15,
+        paddingHorizontal: 15, // Better horizontal spacing
+        paddingVertical: 10,   // Slightly tighter vertical spacing
         marginBottom: 10,
       },
-      switchLabel: { 
-        fontSize: 16, 
-        fontWeight: "500", 
-        color: "#333" 
-      },
+    
 });

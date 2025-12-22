@@ -153,7 +153,7 @@ export default function EditChecklistScreen() {
           {/* Pratishthan Sessions */}
           <View style={styles.cardPratishthan}>
             <Text style={styles.sectionTitle}>
-                <FontAwesome5 name="seedling" size={18} color="#007AFF" /> PRATISHTHAN SESSIONS
+                <FontAwesome5 name="seedling" size={18} color="#007AFF" /> PRATISHTHAN SESSIONS (Yuva for Pratishthan)
             </Text>
 
             {[1, 2, 3, 4].map((n) => (
@@ -172,7 +172,7 @@ export default function EditChecklistScreen() {
           {/* General Checklist & Monthly Follow-up */}
           <View style={styles.cardFollowUp}>
             <Text style={styles.sectionTitle}>
-                <FontAwesome5 name="list-ul" size={18} color="#2ECC71" /> GENERAL CHECKLIST
+                <FontAwesome5 name="list-ul" size={18} color="#2ECC71" /> GENERAL CHECKLIST (Mentors)
             </Text>
 
             <ChecklistSwitch
@@ -203,7 +203,7 @@ export default function EditChecklistScreen() {
 
           <View style={styles.cardFollowUp}>
             <Text style={styles.sectionTitle}>
-                <FontAwesome5 name="calendar-alt" size={18} color="#E67E22" /> MONTHLY FOLLOW-UP
+                <FontAwesome5 name="calendar-alt" size={18} color="#E67E22" /> MONTHLY FOLLOW-UP (Mentors)
             </Text>
 
             {[1, 2, 3, 4].map((n, index) => (
