@@ -3,6 +3,7 @@
     "name": "Sahajayoga Followup",
     "slug": "sahajayogafollowup",
     "version": "1.5.0",
+    "scheme": "sahajayoga-app", 
     "splash": {
       "image": "./assets/images/splash_sy.png",
       "resizeMode": "contain",

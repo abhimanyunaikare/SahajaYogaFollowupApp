@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useCallback } from "react";
 import { 
     View, 
     Text, 
@@ -7,7 +7,7 @@ import {
     StyleSheet, 
     FlatList, 
     ActivityIndicator, 
-    Platform
+    Platform 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
@@ -36,41 +36,50 @@ const PERMISSIONS = {
   AREA: 13,
 };
 
-// Define a separate style for the header title to ensure correct font size and weight
 const HEADER_TITLE_STYLE = {
     fontSize: 20, 
-    fontWeight: '700', // Use '700' or 'bold' for prominence
-    color: TEXT_COLOR, // Match your app's main text color
+    fontWeight: '700',
+    color: TEXT_COLOR,
 };
 
 export default function HomeScreen() {
     const [stats, setStats] = useState(null);
-    const [isLoadingStats, setIsLoadingStats] = useState(true); 
+    const [isLoadingStats, setIsLoadingStats] = useState(false); 
     const [error, setError] = useState(null); 
     const router = useRouter();
-    const { user, logout } = useContext(AuthContext);
-    const APP_NAME = "SahajaYoga Seeker Followup"; // 👈 Define your app name
+    
+    // Get loading state from AuthContext to prevent crashes on startup
+    const { user, loading, logout } = useContext(AuthContext);
+    const APP_NAME = "SahajaYoga Seeker Followup";
 
-    useEffect(() => {
-      const fetchSeekers = async () => {
+    // 1. Fetch Stats logic wrapped in useCallback for safety
+    const fetchStats = useCallback(async () => {
+        // Only fetch if user has Role 1 or 2
+        const role = user?.role_id ? Number(user.role_id) : null;
+        if (role !== 1 && role !== 2) return;
+
         setIsLoadingStats(true);
         setError(null);
         try {
-            console.log(user);
-          const response = await api.get("/dashboard/stats");
-          setStats(response.data);
-        } catch (error) {
-          console.log("Error fetching stats:", error.message);
-          setError("Failed to load dashboard statistics.");
+            const response = await api.get("/dashboard/stats");
+            console.log(user)
+            setStats(response.data);
+        } catch (err) {
+            console.log("Error fetching stats:", err.message);
+            setError("Failed to load dashboard statistics.");
         } finally {
-          setIsLoadingStats(false);
+            setIsLoadingStats(false);
         }
-      };
-      fetchSeekers();
-    }, []);
+    }, [user?.role_id]);
 
+    useEffect(() => {
+        if (user) {
+            fetchStats();
+        }
+    }, [user, fetchStats]);
+
+    // 2. Define Menu Items
     const menuItems = [
-      // ✅ FIX: Set the route directly to the intended destination /seekersList
       { id: "1", title: "Seekers List", icon: "people", color: PRIMARY_COLOR, route: "/seekers" }, 
       { id: "2", title: "Add Seeker", icon: "person-add", color: SECONDARY_COLOR, route: "/addSeeker", permissionId: PERMISSIONS.ADD_SEEKER },
       { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports", permissionId: PERMISSIONS.REPORTS },
@@ -83,69 +92,47 @@ export default function HomeScreen() {
       { id: "10", title: "Area", icon: "location-outline", color: "#803e85", route: "/area", permissionId: PERMISSIONS.AREA },
     ];
 
+    // 3. Filtered Menu Items (with null safety)
+    const accessibleMenuItems = menuItems.filter((item) => {
+        if (!item.permissionId) return true;
+        return Array.isArray(user?.permissions) && user.permissions.includes(item.permissionId);
+    });
+
     const handleLogout = () => {
         Alert.alert("Logout", "Are you sure you want to log out?", [
             { text: "Cancel", style: "cancel" },
-            {
-                text: "Logout",
-                onPress: async () => {
-                    await logout();
-                    router.replace("/login");
-                },
-            },
+            { text: "Logout", onPress: async () => { await logout(); router.replace("/login"); } },
         ]);
     };
 
-    const handlePress = async (item) => {
-        // ✅ FIX: Navigate directly using the route defined in the menu item
-        router.push(item.route);
-    };
-
-    const accessibleMenuItems = menuItems.filter(
-      (item) =>
-        !item.permissionId ||
-        user?.permissions?.includes(item.permissionId)
-    );
-
-    const renderGridItem = ({ item }) => {
+    // --- GUARD CLAUSE: Show Loading Screen while Auth initializes ---
+    if (loading || !user) {
         return (
-            <TouchableOpacity
-                style={styles.gridCard}
-                onPress={() => handlePress(item)}
-            >
-                <View style={[styles.iconContainer, { backgroundColor: item.color + '1A' }]}>
-                    <Ionicons 
-                        name={item.icon} 
-                        size={20} 
-                        color={item.color} 
-                    />
-                </View>
-                
-                <Text style={styles.gridCardText}>
-                    {item.title}
-                </Text>
-            </TouchableOpacity>
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+                <Text style={styles.loadingText}>Initializing Session...</Text>
+            </View>
         );
-    };
+    }
+
+    const renderGridItem = ({ item }) => (
+        <TouchableOpacity style={styles.gridCard} onPress={() => router.push(item.route)}>
+            <View style={[styles.iconContainer, { backgroundColor: item.color + '1A' }]}>
+                <Ionicons name={item.icon} size={20} color={item.color} />
+            </View>
+            <Text style={styles.gridCardText}>{item.title}</Text>
+        </TouchableOpacity>
+    );
     
-    // --- Condensed Stats Card ---
     const renderStatsCard = () => {
         if (isLoadingStats) {
             return (
-                <View style={[styles.statsContainer, {paddingVertical: 10}]}>
+                <View style={styles.statsContainer}>
                     <ActivityIndicator size="small" color={PRIMARY_COLOR} />
-                    <Text style={styles.statsLoadingText}>Loading statistics...</Text>
                 </View>
             );
         }
-
-        if (error) {
-            return (
-                <View style={[styles.statsContainer, styles.statsError]}>
-                    <Text style={styles.statsErrorText}>❌ {error}</Text>
-                </View>
-            );
-        }
+        if (error) return null; // Hide card if error
 
         return (
             <View style={styles.statsContainer}>
@@ -153,9 +140,7 @@ export default function HomeScreen() {
                     <Text style={styles.statLabel}>Unassigned</Text>
                     <Text style={styles.statCount}>{stats?.unallocated_seekers ?? 0}</Text>
                 </View>
-
                 <View style={styles.statDivider} />
-                
                 <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Total Seekers</Text>
                     <Text style={styles.statCount}>{stats?.total_seekers ?? 0}</Text>
@@ -165,197 +150,86 @@ export default function HomeScreen() {
     };
 
     return (
-
         <>
-        <Stack.Screen 
-              options={{
-                  // Set the custom title component
-                  headerTitle: () => (
-                      <Text style={HEADER_TITLE_STYLE}>
-                          {APP_NAME}
-                      </Text>
-                  ),
-                  // Ensure left alignment
-                  headerTitleAlign: 'left',
-                  // Hide the automatically generated back button/arrow
-                  headerLeft: () => null, 
-                  // Ensure there is no gap/padding between the title and the left edge
-                  headerTitleContainerStyle: { 
-                    left: 15, // Aligns the title's container to the left edge (adjust as needed)
-                    right: 0,
-                  },
-                  // Hide the default header (which usually contains the title and back button) 
-                  // since we are using a custom header area for user info/logout.
-                  headerShown: false, // <-- Crucial if you want full control over the area
-              }} 
-          />
-            
-        <SafeAreaView style={styles.container}>
-            
-            {/* OPTIMIZED HEADER */}
-            <View style={styles.header}>
-                <View style={styles.userInfo}>
-                    <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
-                    <Text style={styles.roleText}>{user?.role_name || "No Role"}, {user?.zone_name || "No Zone"}</Text>
+            <Stack.Screen options={{ headerShown: false }} />
+            <SafeAreaView style={styles.container}>
+                {/* HEADER */}
+                <View style={styles.header}>
+                    <View style={styles.userInfo}>
+                        <Text style={styles.welcomeText}>Hello, {user?.name || "User"}</Text>
+                        <Text style={styles.roleText}>
+                            {user?.role_name || "No Role"}{user?.zone_name ? `, ${user.zone_name}` : ""}
+                        </Text>
+                    </View>
+                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                        <Ionicons name="log-out-outline" size={24} color="#F44336" />
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                    <Ionicons name="log-out-outline" size={24} color="#F44336" />
-                </TouchableOpacity>
-            </View>
-            
-            {/* STATISTICS CARD (Condensed) */}
-            {(user?.role_id == 1 || user?.role_id == 2) && renderStatsCard()}
-            
-            {/* NAVIGATION GRID TITLE */}
-            <Text style={styles.menuTitle}>Modules</Text>
+                
+                {/* STATS: Only for Admin/Zonal (Role 1 or 2) */}
+                {(Number(user?.role_id) === 1 || Number(user?.role_id) === 2) && renderStatsCard()}
 
-            {/* NAVIGATION GRID (3-Column Dense Grid) */}
-            <FlatList
-                data={accessibleMenuItems}
-                renderItem={renderGridItem}
-                keyExtractor={(item) => item.id}
-                key={NUM_COLUMNS} 
-                numColumns={NUM_COLUMNS} 
-                columnWrapperStyle={styles.row}
-                contentContainerStyle={styles.gridContainer}
-            />
+                <Text style={styles.menuTitle}>Modules</Text>
+
+                <FlatList
+                    data={accessibleMenuItems}
+                    renderItem={renderGridItem}
+                    keyExtractor={(item) => item.id}
+                    numColumns={NUM_COLUMNS} 
+                    columnWrapperStyle={styles.row}
+                    contentContainerStyle={styles.gridContainer}
+                />
             </SafeAreaView>
         </>
     );
-  }
+}
 
-  const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: BACKGROUND_COLOR, 
-        paddingHorizontal: 15,
-        paddingTop: 5, 
-    },
-    
-    customHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    appTitleText: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: PRIMARY_COLOR, // Using primary color to highlight the app name
-    },
-    rightHeaderContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    
-    // --- Optimized Header Styles ---
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BACKGROUND_COLOR },
+    loadingText: { marginTop: 10, color: SUBTLE_TEXT_COLOR },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        padding: 20,
+        backgroundColor: '#fff',
     },
-    userInfo: {
-    },
-    welcomeText: { 
-        fontSize: 18, 
-        fontWeight: "700", 
-        color: TEXT_COLOR 
-    },
-    roleText: { 
-        fontSize: 14, 
-        color: SUBTLE_TEXT_COLOR, 
-        marginTop: 2 
-    },
-    logoutButton: {
-        padding: 5,
-    },
-    
-    // --- Stats Card (Minimalist) ---
+    welcomeText: { fontSize: 18, fontWeight: '700', color: TEXT_COLOR },
+    roleText: { fontSize: 14, color: SUBTLE_TEXT_COLOR, marginTop: 2 },
     statsContainer: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-        backgroundColor: '#F8F8F8', 
+        flexDirection: 'row',
+        backgroundColor: '#f8f9fa',
+        margin: 15,
+        padding: 15,
         borderRadius: 12,
-        paddingVertical: 15,
-        marginBottom: 25,
         borderWidth: 1,
         borderColor: BORDER_COLOR,
+        alignItems: 'center',
     },
-    statsLoadingText: {
-        marginLeft: 8,
-        color: SUBTLE_TEXT_COLOR
-    },
-    statsError: {
-        paddingVertical: 15,
-        backgroundColor: '#FFEEEE',
-        borderColor: '#F4433650',
-    },
-    statsErrorText: {
-        color: '#F44336',
-        textAlign: 'center',
-        flex: 1,
-        fontWeight: '500'
-    },
-    statItem: {
-        alignItems: "center",
-        flex: 1,
-        paddingHorizontal: 5,
-    },
-    statCount: { 
-        fontSize: 20, 
-        fontWeight: "900", 
-        color: PRIMARY_COLOR, 
-        marginTop: 4,
-    },
-    statLabel: { 
-        fontSize: 12, 
-        color: SUBTLE_TEXT_COLOR, 
-        textAlign: 'center',
-        fontWeight: '500'
-    },
-    statDivider: {
-        width: 1,
-        backgroundColor: BORDER_COLOR,
-        marginHorizontal: 10,
-    },
-    
-    // --- Navigation Grid ---
-    menuTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: TEXT_COLOR,
-        marginBottom: 10,
-        paddingLeft: 5,
-    },
-    gridContainer: {
-        paddingBottom: 20,
-    },
-    row: { 
-        justifyContent: "space-between", 
-        marginBottom: 10 
-    },
+    statItem: { flex: 1, alignItems: 'center' },
+    statLabel: { fontSize: 12, color: SUBTLE_TEXT_COLOR, marginBottom: 4 },
+    statCount: { fontSize: 18, fontWeight: 'bold', color: PRIMARY_COLOR },
+    statDivider: { width: 1, height: '80%', backgroundColor: BORDER_COLOR },
+    menuTitle: { fontSize: 16, fontWeight: '700', marginLeft: 20, marginBottom: 10, color: TEXT_COLOR },
+    gridContainer: { paddingHorizontal: 10 },
+    row: { justifyContent: 'flex-start' },
     gridCard: {
-        flex: 1,
-        height: 90, 
+        flex: 1/NUM_COLUMNS,
+        backgroundColor: '#fff',
+        margin: 8,
+        padding: 15,
         borderRadius: 12,
-        justifyContent: "center",
-        alignItems: "center",
-        marginHorizontal: 5,
-        backgroundColor: '#F8F8F8', 
+        alignItems: 'center',
+        justifyContent: 'center',
         borderWidth: 1,
-        borderColor: BORDER_COLOR,
+        borderColor: '#f0f0f0',
+        ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
+            android: { elevation: 2 }
+        })
     },
-    iconContainer: {
-        padding: 10,
-        borderRadius: 8,
-    },
-    gridCardText: { 
-        color: TEXT_COLOR, 
-        marginTop: 8, 
-        fontSize: 12, 
-        fontWeight: "600",
-        textAlign: 'center',
-        paddingHorizontal: 2,
-    },
-  });
+    iconContainer: { width: 45, height: 45, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+    gridCardText: { fontSize: 11, fontWeight: '600', textAlign: 'center', color: TEXT_COLOR },
+    logoutButton: { padding: 5 }
+});

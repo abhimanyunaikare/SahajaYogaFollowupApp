@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { useLocalSearchParams, Stack} from "expo-router";
+import { useLocalSearchParams, Stack, useRouter} from "expo-router";
 import api from "../../../src/api/apiClient.js"; // Assuming this is your API client path
 import { Ionicons } from "@expo/vector-icons";
 
@@ -9,6 +9,7 @@ export default function SeekersListScreen() {
   const { memberId, name } = useLocalSearchParams(); // memberId from route, name from query param
   const [seekers, setSeekers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     if (!memberId) return; // Wait until memberId is available
@@ -69,7 +70,7 @@ export default function SeekersListScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.item}
-                  // Example: onPress={() => router.push(`/seekers/${item.id}`)}
+                  onPress={() => router.push(`/seeker/${item.id}`)}
                 >
                   <View style={styles.itemContent}>
                       <Text style={styles.itemTitle}>{item.first_name +' '+ item.last_name}</Text>
