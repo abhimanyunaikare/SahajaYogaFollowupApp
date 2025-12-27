@@ -32,6 +32,7 @@ export default function ZoneModeratorsScreen() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
     const targetZoneId = zoneId || user?.zone_id;
+    const roleId = user?.role_id;
 
     const effective_zone_name = user?.zone_name || 'Selected Zone';
 
@@ -47,7 +48,7 @@ export default function ZoneModeratorsScreen() {
             try {
                 console.log(`${targetZoneId}`);
                 // const response = await api.get(`/zones/3/moderators`);
-                const response = await api.get(`/zones/${targetZoneId}/moderators`);
+                const response = await api.get(`/zones/${targetZoneId}/moderators?role_id=${roleId}`);
                 setModerators(response.data);
             } catch (error) {
                 console.log("Error fetching zone mentors:", error.message);
