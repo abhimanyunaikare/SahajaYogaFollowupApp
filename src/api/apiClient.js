@@ -1,19 +1,24 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Update this with your Laravel API IP & port
 const api = axios.create({
-  baseURL: 'http://192.168.64.131:8000/api', // 👈 your laptop’s IP
-  // baseURL: 'http://sahajayoga-pune.org/api/', // 👈 your website
-  timeout: 5000,
+  baseURL: 'http://sahajayoga-pune.org/api', 
+  // baseURL: 'http://192.168.140.131:8000/api', 
+  timeout: 30000,
 });
 
-// Attach Bearer token automatically (if stored)
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  if (config.data instanceof FormData) {
+    // Setting to undefined forces the underlying Native XHR 
+    // to generate the correct multipart/form-data with boundary
+    config.headers['Content-Type'] = undefined;
+  }
+  
   return config;
 });
 

@@ -34,6 +34,7 @@ const PERMISSIONS = {
   MENTOR: 11,
   ZONE: 12,
   AREA: 13,
+  SESSIONS: 14,
 };
 
 const HEADER_TITLE_STYLE = {
@@ -49,7 +50,7 @@ export default function HomeScreen() {
     const router = useRouter();
     
     // Get loading state from AuthContext to prevent crashes on startup
-    const { user, loading, logout } = useContext(AuthContext);
+    const { user, loading, logout , validateUserSession} = useContext(AuthContext);
     const APP_NAME = "SahajaYoga Seeker Followup";
 
     // 1. Fetch Stats logic wrapped in useCallback for safety
@@ -73,10 +74,23 @@ export default function HomeScreen() {
     }, [user?.role_id]);
 
     useEffect(() => {
-        if (user) {
-            fetchStats();
-        }
-    }, [user, fetchStats]);
+        const checkSecurity = async () => {
+            if (user && !loading) {
+                // Now this function will correctly exist
+                const isValid = await validateUserSession(user); 
+                
+                if (isValid) {
+                    fetchStats();
+                } else {
+                    // router.replace("/login") is usually handled by AuthProvider 
+                    // state changes, but we can be explicit here:
+                    router.replace("/login"); 
+                }
+            }
+        };
+
+        checkSecurity();
+    }, [user?.role_id]); // Re-run if role_id changes
 
     // 2. Define Menu Items
     const menuItems = [
@@ -90,6 +104,7 @@ export default function HomeScreen() {
       { id: "8", title: "Mentors", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.MENTOR },
       { id: "9", title: "Zone", icon: "compass-outline", color: "#3e857e", route: "/zone", permissionId: PERMISSIONS.ZONE },
       { id: "10", title: "Area", icon: "location-outline", color: "#803e85", route: "/area", permissionId: PERMISSIONS.AREA },
+      { id: "11", title: "Pratishthan Sessions", icon: "grid-outline", color: "#853e47", route: "/sessions", permissionId: PERMISSIONS.SESSIONS },
     ];
 
     // 3. Filtered Menu Items (with null safety)
