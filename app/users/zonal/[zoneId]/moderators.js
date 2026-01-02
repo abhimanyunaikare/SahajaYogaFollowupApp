@@ -1,5 +1,3 @@
-// users/zonal/[zoneId]/moderators.js
-
 import React, { useEffect, useState } from "react";
 import { 
     View, 
@@ -9,22 +7,22 @@ import {
     StyleSheet, 
     ActivityIndicator, 
     Platform,
-    Linking // Added Linking for phone call
+    Linking,
+    SafeAreaView
 } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router"; 
 import api from "../../../../src/api/apiClient"; 
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-// --- Constants ---
+// --- Theme Constants ---
 const PRIMARY_COLOR = "#007AFF"; 
-const TEXT_COLOR = "#212121";
-const SUBTLE_TEXT_COLOR = "#757575";
-const ACCENT_COLOR = "#4CAF50";
-const BACKGROUND_COLOR = "#F4F4F4"; 
+const TEXT_COLOR = "#1C1C1E";
+const SUBTLE_TEXT_COLOR = "#8E8E93";
+const SUCCESS_COLOR = "#34C759";
+const BACKGROUND_COLOR = "#F2F2F7"; 
 const ITEM_BACKGROUND = "#FFFFFF"; 
 
 export default function ZoneModeratorsScreen() {
-    // Note: The file path is app/users/zonal/[zoneId]/moderators.js
     const { zoneId, name: zoneName } = useLocalSearchParams(); 
     const [moderators, setModerators] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -32,7 +30,6 @@ export default function ZoneModeratorsScreen() {
 
     useEffect(() => {
         if (!zoneId) return;
-        // ... (fetchModerators logic remains the same)
         const fetchModerators = async () => {
             try {
                 const response = await api.get(`/zones/${zoneId}/moderators`);
@@ -46,127 +43,149 @@ export default function ZoneModeratorsScreen() {
         fetchModerators();
     }, [zoneId]);
 
-    // Function to handle phone call
     const handleCall = (phoneNumber) => {
         if (phoneNumber) {
             Linking.openURL(`tel:${phoneNumber}`).catch(err => console.error('Failed to open dialer', err));
         }
     };
 
-    // Corrected Navigation: Whole card press opens seekers list
-    const handleModeratorPress = (moderatorId, moderatorName) => {
-        // Correct pathing based on your stated target: app/users/zonal/[moderatorId]/seekers.js
-        // We navigate back to the 'zonal' root and then into the dynamic [moderatorId]
-        // This assumes your Expo Router is configured to handle the structure correctly.
+    const handleModeratorPress = (moderatorId, moderatorName) => {        
         router.push(`/users/zonal/${moderatorId}/seekers?name=${moderatorName}`);
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+        return new Date(dateString).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+        });
     };
 
     if (loading) {
         return <ActivityIndicator style={styles.loader} size="large" color={PRIMARY_COLOR} />;
     }
 
-    const EmptyList = () => (
-        <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={40} color={SUBTLE_TEXT_COLOR} />
-            <Text style={styles.emptyText}>No mentors found in {zoneName}.</Text>
-        </View>
-    );
-
     return (
-        <>
-            <Stack.Screen
-                options={{
-                    title: `${zoneName} Mentors`,
-                }}
-            />
-            <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
+            <Stack.Screen options={{ title: `${zoneName} Mentors` }} />
+            
+            <View style={{ flex: 1 }}>
                 <FlatList
                     data={moderators}
                     keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    // 🚀 Bottom Navigation fix
+                    ListFooterComponent={<View style={{ height: 150 }} />}
                     renderItem={({ item }) => (
-                        // WRAP THE ENTIRE CARD IN TOUCHABLEOPACITY FOR SEEKER NAVIGATION
                         <TouchableOpacity
                             style={styles.itemCard}
                             onPress={() => handleModeratorPress(item.id, item.name)} 
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="person-circle-outline" size={36} color={PRIMARY_COLOR} style={styles.memberIcon} />
+                            {/* Left: Avatar/Icon */}
+                            <View style={styles.avatarContainer}>
+                                <Ionicons name="person-circle" size={48} color={PRIMARY_COLOR} />
+                            </View>
 
                             <View style={styles.itemContent}>
-                                {/* Moderator Name */}
-                                <Text style={styles.itemTitle}>{item.name}</Text>
-                                
-                                {/* Assigned Seekers Count */}
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="checkmark-circle-outline" size={14} color={ACCENT_COLOR} />
-                                    <Text style={[styles.countText, { color: ACCENT_COLOR }]}>
-                                        {item.seekers_count || 0} Seekers Assigned
-                                    </Text>
+                                {/* Top Row: Name and Count */}
+                                <View style={styles.titleRow}>
+                                    <Text style={styles.itemTitle}>{item.name}</Text>
+                                    <View style={styles.badge}>
+                                        <Text style={styles.badgeText}>{item.seekers_count || 0} Seekers</Text>
+                                    </View>
                                 </View>
+                                
+                                {/* Info Row: Status & Mobile */}
+                                <View style={styles.detailRow}>
+                                    <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
+                                    <Text style={styles.subtitle}>{item.mobile || 'No Mobile'}</Text>
+                                    <View style={styles.dotSeparator} />
+                                    {/* <Ionicons name="shield-checkmark-outline" size={14} color={SUCCESS_COLOR} />
+                                    <Text style={[styles.subtitle, {color: SUCCESS_COLOR}]}>Active</Text> */}
+                                </View>
+
+                                {/* Bottom Row: Dates
+                                <View style={styles.dateRow}>
+                                    <View style={styles.dateBadge}>
+                                        <MaterialCommunityIcons name="clock-outline" size={12} color="#555" />
+                                        <Text style={styles.dateText}>Joined: {formatDate(item.created_at)}</Text>
+                                    </View>
+                                    <View style={[styles.dateBadge, { marginLeft: 8 }]}>
+                                        <MaterialCommunityIcons name="update" size={12} color="#555" />
+                                        <Text style={styles.dateText}>Upd: {formatDate(item.updated_at)}</Text>
+                                    </View>
+                                </View> */}
                             </View>
                             
-                            {/* DEDICATED CALL BUTTON (Stops navigation logic from triggering) */}
+                            {/* Call Action */}
                             <TouchableOpacity
-                                style={styles.callButton}
+                                style={[styles.callButton, !item.mobile && styles.disabledButton]}
                                 onPress={() => handleCall(item.mobile)}
                                 disabled={!item.mobile}
                             >
-                                <Ionicons 
-                                    name="call" 
-                                    size={24} 
-                                    color={item.mobile ? ITEM_BACKGROUND : SUBTLE_TEXT_COLOR} 
-                                />
+                                <Ionicons name="call" size={20} color="white" />
                             </TouchableOpacity>
-                             {/* Navigation Chevron */}
-                            <Ionicons name="chevron-forward" size={20} color={SUBTLE_TEXT_COLOR} />
+
+                            <Ionicons name="chevron-forward" size={18} color="#C7C7CC" style={{marginLeft: 5}} />
                         </TouchableOpacity>
                     )}
-                    ListEmptyComponent={EmptyList}
-                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="people-outline" size={50} color={SUBTLE_TEXT_COLOR} />
+                            <Text style={styles.emptyText}>No mentors found in {zoneName}.</Text>
+                        </View>
+                    )}
                 />
             </View>
-        </>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
-    loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BACKGROUND_COLOR },
-    listContent: { paddingHorizontal: 15, paddingVertical: 15 },
+    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    listContent: { padding: 12 },
+    
     itemCard: {
         backgroundColor: ITEM_BACKGROUND,
-        borderRadius: 8,
+        borderRadius: 12,
         marginBottom: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
-        elevation: 1.5,
+        padding: 12,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
     },
-    memberIcon: {
-        marginRight: 15,
-        opacity: 0.8,
-    },
+    avatarContainer: { marginRight: 12 },
     itemContent: { flex: 1 },
-    itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR, marginBottom: 5 },
-    detailRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    countText: { fontSize: 14, fontWeight: '600', marginLeft: 5 },
-    callButton: { // Dedicated button style
-        backgroundColor: PRIMARY_COLOR,
-        padding: 8,
-        borderRadius: 20,
+    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR },
+    
+    badge: { backgroundColor: '#E8F2FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+    badgeText: { fontSize: 11, color: PRIMARY_COLOR, fontWeight: '700' },
+
+    detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    subtitle: { fontSize: 13, color: SUBTLE_TEXT_COLOR, marginLeft: 4 },
+    dotSeparator: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#C7C7CC", marginHorizontal: 8 },
+
+    dateRow: { flexDirection: 'row', alignItems: 'center' },
+    dateBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: "#F2F2F7", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+    dateText: { fontSize: 10, color: "#555", marginLeft: 4 },
+
+    callButton: {
+        backgroundColor: SUCCESS_COLOR,
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginLeft: 10,
     },
-    emptyContainer: {
-        padding: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: ITEM_BACKGROUND,
-        borderRadius: 8,
-        marginTop: 20,
-      },
-      emptyText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: SUBTLE_TEXT_COLOR,
-        textAlign: 'center',
-      }
+    disabledButton: { backgroundColor: '#D1D1D6' },
+
+    emptyContainer: { padding: 40, alignItems: 'center', marginTop: 50 },
+    emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR, textAlign: 'center' }
 });

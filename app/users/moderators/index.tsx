@@ -1,5 +1,3 @@
-// users/zonal/[zoneId]/moderators.js
-
 import React, { useEffect, useState, useContext } from "react";
 import { 
     View, 
@@ -9,45 +7,40 @@ import {
     StyleSheet, 
     ActivityIndicator, 
     Platform,
-    Linking // Added Linking for phone call
+    Linking,
+    SafeAreaView
 } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router"; 
 import api from "../../../src/api/apiClient.js"; 
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthContext } from "../../../src/context/AuthContext";
 
-// --- Constants ---
+// --- Theme Constants ---
 const PRIMARY_COLOR = "#007AFF"; 
-const TEXT_COLOR = "#212121";
-const SUBTLE_TEXT_COLOR = "#757575";
-const ACCENT_COLOR = "#4CAF50";
-const BACKGROUND_COLOR = "#F4F4F4"; 
+const SUCCESS_COLOR = "#34C759"; 
+const TEXT_COLOR = "#1C1C1E";
+const SUBTLE_TEXT_COLOR = "#8E8E93";
+const BACKGROUND_COLOR = "#F2F2F7"; 
 const ITEM_BACKGROUND = "#FFFFFF"; 
 
 export default function ZoneModeratorsScreen() {
-    // Note: The file path is app/users/zonal/[zoneId]/moderators.js
-    const { user} = useContext(AuthContext);
+    const { user } = useContext(AuthContext);
     const { zoneId } = useLocalSearchParams(); 
     const [moderators, setModerators] = useState([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+
     const targetZoneId = zoneId || user?.zone_id;
     const roleId = user?.role_id;
-
     const effective_zone_name = user?.zone_name || 'Selected Zone';
 
     useEffect(() => {
-// Only run fetch if we have a valid zone ID
         if (!targetZoneId) {
             setLoading(false);
-            console.log("No zone ID available for fetching moderators.");
             return;
         }
-                // ... (fetchModerators logic remains the same)
         const fetchModerators = async () => {
             try {
-                console.log(`${targetZoneId}`);
-                // const response = await api.get(`/zones/3/moderators`);
                 const response = await api.get(`/zones/${targetZoneId}/moderators?role_id=${roleId}`);
                 setModerators(response.data);
             } catch (error) {
@@ -57,129 +50,149 @@ export default function ZoneModeratorsScreen() {
             }
         };
         fetchModerators();
-    }, [zoneId]);
+    }, [targetZoneId]);
 
-    // Function to handle phone call
     const handleCall = (phoneNumber) => {
         if (phoneNumber) {
-            Linking.openURL(`tel:${phoneNumber}`).catch(err => console.error('Failed to open dialer', err));
+            Linking.openURL(`tel:${phoneNumber}`).catch(err => console.error('Dialer error', err));
         }
     };
 
-    // Corrected Navigation: Whole card press opens seekers list
     const handleModeratorPress = (moderatorId, moderatorName) => {
-        // Correct pathing based on your stated target: app/users/zonal/[moderatorId]/seekers.js
-        // We navigate back to the 'zonal' root and then into the dynamic [moderatorId]
-        // This assumes your Expo Router is configured to handle the structure correctly.
         router.push(`/users/zonal/${moderatorId}/seekers?name=${moderatorName}`);
     };
 
     if (loading) {
-        return <ActivityIndicator style={styles.loader} size="large" color={PRIMARY_COLOR} />;
+        return (
+            <View style={styles.loader}>
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+            </View>
+        );
     }
 
-    const EmptyList = () => (
-        <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={40} color={SUBTLE_TEXT_COLOR} />
-            <Text style={styles.emptyText}>No mentors found in {effective_zone_name}.</Text>
-        </View>
-    );
-
     return (
-        <>
-            <Stack.Screen
-                options={{
-                    title: `${effective_zone_name} Mentors`,
-                }}
-            />
-            <View style={styles.container}>
-                <FlatList
-                    data={moderators}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        // WRAP THE ENTIRE CARD IN TOUCHABLEOPACITY FOR SEEKER NAVIGATION
-                        <TouchableOpacity
-                            style={styles.itemCard}
-                            onPress={() => handleModeratorPress(item.id, item.name)} 
-                        >
-                            <Ionicons name="person-circle-outline" size={36} color={PRIMARY_COLOR} style={styles.memberIcon} />
+        <SafeAreaView style={styles.container}>
+            <Stack.Screen options={{ title: `${effective_zone_name} Mentors` }} />
+            
+            <FlatList
+                data={moderators}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.listContent}
+                // 🚀 Bottom Padding Fix
+                ListFooterComponent={<View style={{ height: 150 }} />}
+                renderItem={({ item }) => (
+                    <TouchableOpacity
+                        style={styles.itemCard}
+                        onPress={() => handleModeratorPress(item.id, item.name)}
+                        activeOpacity={0.7}
+                    >
+                        {/* Avatar Initials */}
+                        <View style={styles.avatar}>
+                            <Text style={styles.avatarText}>{item.name?.substring(0, 2).toUpperCase()}</Text>
+                        </View>
 
-                            <View style={styles.itemContent}>
-                                {/* Moderator Name */}
+                        <View style={styles.itemContent}>
+                            {/* Name and Badge */}
+                            <View style={styles.titleRow}>
                                 <Text style={styles.itemTitle}>{item.name}</Text>
-                                
-                                {/* Assigned Seekers Count */}
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="checkmark-circle-outline" size={14} color={ACCENT_COLOR} />
-                                    <Text style={[styles.countText, { color: ACCENT_COLOR }]}>
-                                        {item.seekers_count || 0} Seekers Assigned
-                                    </Text>
+                                <View style={styles.countBadge}>
+                                    <Text style={styles.countText}>{item.seekers_count || 0} Seekers</Text>
                                 </View>
                             </View>
                             
-                            {/* DEDICATED CALL BUTTON (Stops navigation logic from triggering) */}
-                            <TouchableOpacity
-                                style={styles.callButton}
-                                onPress={() => handleCall(item.mobile)}
-                                disabled={!item.mobile}
-                            >
-                                <Ionicons 
-                                    name="call" 
-                                    size={24} 
-                                    color={item.mobile ? ITEM_BACKGROUND : SUBTLE_TEXT_COLOR} 
-                                />
-                            </TouchableOpacity>
-                             {/* Navigation Chevron */}
-                            <Ionicons name="chevron-forward" size={20} color={SUBTLE_TEXT_COLOR} />
+                            {/* Mobile Info */}
+                            <View style={styles.detailRow}>
+                                <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
+                                <Text style={styles.subtitle}>{item.mobile || 'No Mobile'}</Text>
+                            </View>
+
+                            {/* Status Info */}
+                            {/* <View style={styles.statusRow}>
+                                <MaterialCommunityIcons name="account-check-outline" size={14} color={SUCCESS_COLOR} />
+                                <Text style={styles.statusText}>Active Mentor</Text>
+                            </View> */}
+                        </View>
+                        
+                        {/* 📞 Call Action Button */}
+                        <TouchableOpacity
+                            style={[styles.callButton, !item.mobile && styles.disabledCall]}
+                            onPress={() => handleCall(item.mobile)}
+                            disabled={!item.mobile}
+                        >
+                            <Ionicons name="call" size={18} color="white" />
                         </TouchableOpacity>
-                    )}
-                    ListEmptyComponent={EmptyList}
-                    contentContainerStyle={styles.listContent}
-                />
-            </View>
-        </>
+
+                        <Ionicons name="chevron-forward" size={18} color="#C7C7CC" style={{ marginLeft: 5 }} />
+                    </TouchableOpacity>
+                )}
+                ListEmptyComponent={() => (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="people-outline" size={50} color={SUBTLE_TEXT_COLOR} />
+                        <Text style={styles.emptyText}>No mentors found in {effective_zone_name}.</Text>
+                    </View>
+                )}
+            />
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
-    loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BACKGROUND_COLOR },
-    listContent: { paddingHorizontal: 15, paddingVertical: 15 },
+    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    listContent: { padding: 12 },
+    
+    // --- Modern Card Styles ---
     itemCard: {
         backgroundColor: ITEM_BACKGROUND,
-        borderRadius: 8,
+        borderRadius: 12,
         marginBottom: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
-        elevation: 1.5,
+        padding: 12,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
     },
-    memberIcon: {
-        marginRight: 15,
-        opacity: 0.8,
+    avatar: {
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: '#E8F2FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
     },
+    avatarText: { color: PRIMARY_COLOR, fontWeight: '700', fontSize: 15 },
     itemContent: { flex: 1 },
-    itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR, marginBottom: 5 },
-    detailRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    countText: { fontSize: 14, fontWeight: '600', marginLeft: 5 },
-    callButton: { // Dedicated button style
-        backgroundColor: PRIMARY_COLOR,
-        padding: 8,
-        borderRadius: 20,
+    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR },
+    
+    countBadge: {
+        backgroundColor: '#F2F2F7',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    countText: { fontSize: 11, color: PRIMARY_COLOR, fontWeight: '700' },
+
+    detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    subtitle: { fontSize: 13, color: SUBTLE_TEXT_COLOR, marginLeft: 4 },
+    
+    statusRow: { flexDirection: 'row', alignItems: 'center' },
+    statusText: { fontSize: 12, color: SUCCESS_COLOR, marginLeft: 4, fontWeight: '500' },
+
+    callButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: SUCCESS_COLOR,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginLeft: 10,
     },
-    emptyContainer: {
-        padding: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: ITEM_BACKGROUND,
-        borderRadius: 8,
-        marginTop: 20,
-      },
-      emptyText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: SUBTLE_TEXT_COLOR,
-        textAlign: 'center',
-      }
+    disabledCall: { backgroundColor: '#D1D1D6' },
+
+    emptyContainer: { padding: 40, alignItems: 'center', marginTop: 50 },
+    emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR, textAlign: 'center' }
 });

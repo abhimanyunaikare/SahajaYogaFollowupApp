@@ -1,26 +1,43 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { 
+    View, 
+    Text, 
+    FlatList, 
+    TouchableOpacity, 
+    StyleSheet, 
+    ActivityIndicator,
+    Platform,
+    SafeAreaView 
+} from "react-native";
 import { useLocalSearchParams, Stack, useRouter} from "expo-router";
-import api from "../../../src/api/apiClient.js"; // Assuming this is your API client path
-import { Ionicons } from "@expo/vector-icons";
+import api from "../../../src/api/apiClient.js"; 
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-// Assuming this file is located at /app/users/seekers/[memberId].js
+// --- Theme Constants ---
+const PRIMARY_COLOR = "#007AFF"; 
+const SUCCESS_COLOR = "#34C759"; 
+const WARNING_COLOR = "#FF9500"; 
+const TEXT_COLOR = "#1C1C1E";
+const SUBTLE_TEXT_COLOR = "#8E8E93";
+const BACKGROUND_COLOR = "#F2F2F7"; 
+const ITEM_BACKGROUND = "#FFFFFF"; 
+const DANGER_COLOR = "#FF3B30";
+
 export default function SeekersListScreen() {
-  const { memberId, name } = useLocalSearchParams(); // memberId from route, name from query param
+  const { memberId, name } = useLocalSearchParams(); 
   const [seekers, setSeekers] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!memberId) return; // Wait until memberId is available
+    if (!memberId) return;
 
     const fetchSeekers = async () => {
       try {
-        // --- API Call to fetch seekers assigned to a specific member ID ---
         const response = await api.get(`/users/callingteammembers/${memberId}`);
         setSeekers(response.data);
       } catch (error) {
-        console.log(`Error fetching seekers for member ${memberId}:`, error.message);
+        console.log(`Error fetching seekers:`, error.message);
       } finally {
         setLoading(false);
       }
@@ -28,115 +45,155 @@ export default function SeekersListScreen() {
     fetchSeekers();
   }, [memberId]);
 
-  if (loading) {
-    return <ActivityIndicator style={styles.loader} size="large" color="#007AFF" />;
-  }
-  
-  // Helper function for date formatting (already in your renderItem)
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString("en-GB", {
+    return new Date(dateString).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
-        year: "numeric",
     });
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+      </View>
+    );
+  }
+
   return (
-     <>
+     <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
-          // Use the member's name in the header for context
           title: name ? `${name}'s Seekers` : "Assigned Seekers",
         }}
       />
-        <View style={styles.container}>
-          
-          {/* 👇 DISPLAY TOTAL COUNT HERE */}
-          <View style={styles.summaryBox}>
-            <Text style={styles.summaryText}>
-              Total Seekers Allocated: 
-              <Text style={styles.countNumber}> {seekers.length}</Text>
-            </Text>
-          </View>
-          {/* --------------------------- */}
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={seekers}
+            keyExtractor={(item) => item.id.toString()}
+            // 🚀 Padding Fix: Bottom Nav ke liye extra jagah
+            contentContainerStyle={styles.listContent}
+            ListFooterComponent={<View style={{ height: 150 }} />}
+            
+            ListHeaderComponent={() => (
+              <View style={styles.summaryBox}>
+                <Ionicons name="people" size={20} color="#388E3C" />
+                <Text style={styles.summaryText}>
+                  Total Allocated: <Text style={styles.countNumber}>{seekers.length}</Text>
+                </Text>
+              </View>
+            )}
 
-          {seekers.length === 0 ? (
-              <Text style={styles.emptyText}>No seekers currently assigned to this member.</Text>
-          ) : (
-            <FlatList
-              data={seekers}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.item}
-                  onPress={() => router.push(`/seeker/${item.id}`)}
-                >
-                  <View style={styles.itemContent}>
-                      <Text style={styles.itemTitle}>{item.first_name +' '+ item.last_name}</Text>
-                      {/* <Text style={styles.itemSubtitle}>Status: {item.status}</Text> */}
-                      <Text style={styles.itemSubtitle}>Start Date: {formatDate(item.created_at)}</Text>
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.itemCard}
+                onPress={() => router.push(`/seeker/${item.id}`)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.itemContent}>
+                    {/* Top Row: Name and Status */}
+                    <View style={styles.titleRow}>
+                      <Text style={styles.itemTitle}>{item.first_name} {item.last_name}</Text>
+                      <View style={styles.statusIcons}>
+                          {/* Called Icon: check 'called' field or 'caller_id' */}
+                          <Ionicons 
+                              name={item.caller ? "call" : "call-outline"} 
+                              size={16} 
+                              color={item.caller ? SUCCESS_COLOR : WARNING_COLOR} 
+                          />
+                          {/* Assigned Icon */}
+                          <Ionicons 
+                              name={item.moderator ? "person-outline" : "person-remove-outline"} 
+                              size={18} 
+                              color={item.moderator ? SUCCESS_COLOR : DANGER_COLOR} 
+                              style={{ marginLeft: 8 }} 
+                          />                                    
+                      </View>
                   </View>
-                  <Ionicons name="person-circle-outline" size={24} color="#007AFF" />
-                </TouchableOpacity>
-              )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-            />
-          )}
+
+                    {/* Middle Row: Phone */}
+                    <View style={styles.detailRow}>
+                        <Ionicons name="phone-portrait-outline" size={14} color={SUBTLE_TEXT_COLOR} />
+                        <Text style={styles.subtitle}>{item.mobile || 'N/A'}</Text>
+                    </View>
+                    
+                    {/* Bottom Row: Date Badges */}
+                    <View style={styles.dateRow}>
+                        <View style={styles.dateBadge}>
+                            <MaterialCommunityIcons name="calendar-plus" size={12} color="#555" />
+                            <Text style={styles.dateText}>Start: {formatDate(item.created_at)}</Text>
+                        </View>
+                        <View style={[styles.dateBadge, { marginLeft: 10 }]}>
+                            <MaterialCommunityIcons name="calendar-sync" size={12} color="#555" />
+                            <Text style={styles.dateText}>Upd: {formatDate(item.updated_at)}</Text>
+                        </View>
+                    </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="alert-circle-outline" size={50} color={SUBTLE_TEXT_COLOR} />
+                <Text style={styles.emptyText}>No seekers currently assigned.</Text>
+              </View>
+            )}
+          />
         </View>
-       </>
+       </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5", paddingHorizontal: 10 }, // Added padding for the list
+  container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  listContent: { paddingHorizontal: 12, paddingVertical: 10 },
   
-  // NEW STYLES FOR COUNT
   summaryBox: {
-    padding: 12,
-    backgroundColor: '#E8F5E9', // Light green for positive/summary feel
-    borderRadius: 8,
-    marginVertical: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50', // Green accent
-    marginBottom: 15,
-  },
-  summaryText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  countNumber: {
-    fontWeight: 'bold',
-    color: '#388E3C', // Darker green for count emphasis
-    fontSize: 18,
-  },
-  // END NEW STYLES
-  
-  item: {
     padding: 15,
-    backgroundColor: "#fff",
+    backgroundColor: '#E8F5E9', 
+    borderRadius: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 8,
-    marginBottom: 8, // Added margin bottom for spacing between items
-    elevation: 1, // Optional shadow for Android
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
   },
-  itemContent: {
-      flex: 1,
+  summaryText: { fontSize: 15, color: '#333', marginLeft: 10, fontWeight: '500' },
+  countNumber: { fontWeight: 'bold', color: '#2E7D32', fontSize: 18 },
+
+  itemCard: {
+    backgroundColor: ITEM_BACKGROUND,
+    padding: 15,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
   },
-  itemTitle: { fontSize: 16, fontWeight: "600", color: '#333' },
-  itemSubtitle: { fontSize: 14, color: '#666', marginTop: 2 },
-  separator: {
-    // Removed separator since items now have margin
-    height: 0, 
+  itemContent: { flex: 1 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR },
+  statusIcons: { flexDirection: 'row', alignItems: 'center' },
+
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  subtitle: { fontSize: 13, color: SUBTLE_TEXT_COLOR, marginLeft: 5 },
+
+  dateRow: { flexDirection: 'row', alignItems: 'center' },
+  dateBadge: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: "#F2F2F7", 
+    paddingHorizontal: 8, 
+    paddingVertical: 3, 
+    borderRadius: 4 
   },
-  emptyText: {
-      textAlign: 'center',
-      marginTop: 50,
-      fontSize: 16,
-      color: '#666',
-  }
+  dateText: { fontSize: 11, color: "#555", marginLeft: 4, fontWeight: '500' },
+
+  emptyContainer: { alignItems: 'center', marginTop: 60 },
+  emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR }
 });

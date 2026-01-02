@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+// import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import ImageResizer from 'react-native-image-resizer';
 import apiClient from '../../src/api/apiClient';
 
@@ -20,7 +20,7 @@ interface ScannedSeeker {
 }
 
 export default function SessionsScreen() {
-  const { hasPermission, requestPermission } = useCameraPermission();
+  // const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const camera = useRef<Camera>(null);
 
@@ -73,12 +73,22 @@ export default function SessionsScreen() {
       } else {
         Alert.alert('No Numbers Found', 'Try scanning again with better lighting.');
       }
-    } catch (error: any) {
-      console.log('OCR Error:', error?.response?.data || error.message);
-      Alert.alert('Scan Error', 'Unable to scan image.');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.log('OCR ERROR FULL:', {
+        message: error.message,
+        code: error.code,
+        isAxiosError: error.isAxiosError,
+        request: error.request,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+    
+      Alert.alert(
+        'Scan Error',
+        error.response?.data?.message || error.message
+      );
     }
+    
   };
 
   /* -------------------- SUBMIT ATTENDANCE -------------------- */

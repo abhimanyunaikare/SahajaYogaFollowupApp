@@ -144,7 +144,7 @@ export default function EditUserScreen() {
 
             {/* ✉️ Password */}
             <View style={styles.inputRow}>
-              <Ionicons name="mail-outline" size={20} color="#555" style={styles.icon} />
+              <Ionicons name="key-outline" size={20} color="#555" style={styles.icon} />
               <TextInput
                 style={styles.input}
                 placeholder="Password"

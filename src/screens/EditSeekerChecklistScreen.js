@@ -70,6 +70,13 @@ export default function EditChecklistScreen() {
   const [loading, setLoading] = useState(true);
   const [checklist, setChecklist] = useState({});
 
+  // Charon mahino ka attendance check
+  const allMonthsAttended = 
+    checklist.month_1 && 
+    checklist.month_2 && 
+    checklist.month_3 && 
+    checklist.month_4;
+
   const handleChange = (key, value) => {
     setChecklist(prev => ({
       ...prev,
@@ -182,7 +189,31 @@ export default function EditChecklistScreen() {
             />
 
             <ChecklistSwitch
-              label="Attended Centre"
+              label="Meditating at Home"
+              value={checklist.meditating_at_home}
+              onChange={(val) => handleChange("meditating_at_home", val)}
+            />
+
+            <ChecklistSwitch
+              label="Footsoak at Home"
+              value={checklist.footsoak_at_home}
+              onChange={(val) => handleChange("footsoak_at_home", val)}
+            />
+
+            <ChecklistSwitch
+              label="Shri Mataji's Photo at Home"
+              value={checklist.photo_at_home}
+              onChange={(val) => handleChange("photo_at_home", val)}
+            />
+
+            <ChecklistSwitch
+              label="Check Puja arranged at Home"
+              value={checklist.alter_check_at_home}
+              onChange={(val) => handleChange("alter_check_at_home", val)}
+            />
+
+            <ChecklistSwitch
+              label="Attending Centre"
               value={checklist.attended_centres}
               onChange={(val) => handleChange("attended_centres", val)}
             />
@@ -219,6 +250,27 @@ export default function EditChecklistScreen() {
               />
             ))}
           </View>
+
+          <View style={styles.cardFollowUp}>
+            <Text style={styles.sectionTitle}>
+                <FontAwesome5 name="calendar-alt" size={18} color="#E67E22" /> After 4th Month Review (Mentors)
+            </Text>
+
+            <View style={{ opacity: allMonthsAttended ? 1 : 0.5 }}> 
+                <ChecklistSwitch
+                  label="Has He/She become a Sahajayogi?"
+                  value={allMonthsAttended ? checklist.established : false} // Agar charon true nahi hain toh false rahega
+                  onChange={(val) => handleChange("established", val)}
+                  disabled={!allMonthsAttended} // Agar sab true nahi hain toh click nahi hoga
+                  isLast={true}
+                />
+                {!allMonthsAttended && (
+                    <Text style={{ fontSize: 12, color: 'red', marginLeft: 5, marginTop: 5 }}>
+                        * All 4 months must be attended to enable this review.
+                    </Text>
+                )}
+            </View>
+        </View>
 
           </ScrollView>
       </KeyboardAvoidingView>

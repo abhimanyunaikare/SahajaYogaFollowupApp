@@ -66,9 +66,9 @@ export default function SeekerProfileScreen() {
   const navigation = useNavigation();const { user } = useContext(AuthContext);
 
   // Use optional chaining and ensure we have an array before calling .includes
-  const canEditSeeker = Array.isArray(user?.permissions) && 
-                        user?.permissions_map?.edit_seeker && 
-                        user.permissions.includes(user.permissions_map.edit_seeker);
+  // const canEditSeeker = Array.isArray(user?.permissions) && 
+  //                       user?.permissions_map?.edit_seeker && 
+  //                       user.permissions.includes(user.permissions_map.edit_seeker);
                         
   const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
   const router = useRouter();
@@ -223,10 +223,16 @@ export default function SeekerProfileScreen() {
               
               <View style={styles.dateInfo}>
                 <Text style={styles.dateText}>
-                  Entry Date: **{formatDate(seeker.created_at)}**
+                  Created Date: {formatDate(seeker.created_at)}
                 </Text>
                 <Text style={styles.dateText}>
-                  Last Updated: **{formatDate(seeker.updated_at)}**
+                  - By: {seeker.creator?.name} ({seeker.creator?.zone?.name}) 
+                </Text>
+                <Text style={styles.dateText}>
+                  Last Updated: {formatDate(seeker.updated_at)}
+                </Text>
+                <Text style={styles.dateText}>
+                  - By: {seeker.lastupdator?.name} ({seeker.lastupdator?.role?.name})
                 </Text>
               </View>
               
@@ -238,7 +244,7 @@ export default function SeekerProfileScreen() {
                 <StatusBadge isTrue={seeker.interested_in_followup} />
             </View>
 
-            {user.permissions.includes(2) && (
+            {user?.permissions?.includes(2) && (
                 <TouchableOpacity
                     style={styles.editChecklistButton}
                     onPress={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}`)}
@@ -284,7 +290,23 @@ export default function SeekerProfileScreen() {
                     isTrue={checklist.feeling_vibrations} 
                 />
                 <ChecklistItem 
-                    label="Attended Center" 
+                    label="Meditating at Home" 
+                    isTrue={checklist.meditating_at_home} 
+                />
+                <ChecklistItem 
+                    label="Footsoak at Home" 
+                    isTrue={checklist.footsoak_at_home} 
+                />
+                <ChecklistItem 
+                    label="Shri Mataji's Photo at Home" 
+                    isTrue={checklist.photo_at_home} 
+                />
+                <ChecklistItem 
+                    label="Check Puja arranged at Home" 
+                    isTrue={checklist.alter_check_at_home} 
+                />
+                <ChecklistItem 
+                    label="Attending Center" 
                     isTrue={checklist.attended_centres} 
                 />
                 <ChecklistItem 
@@ -319,6 +341,15 @@ export default function SeekerProfileScreen() {
                     isTrue={checklist.month_4} 
                     comment={checklist.month_4_comments} 
                 />
+            </View>
+
+
+            <Text style={styles.sectionHeader}>🗓️ After 4th Months Review (Mentors)</Text>
+            <View style={styles.checklistCardSecondary}>
+              <ChecklistItem 
+                      label="Has He/She become a Sahajayogi?" 
+                      isTrue={checklist.established} 
+                  />              
             </View>
         </ScrollView>
     </View>

@@ -21,11 +21,13 @@ import { useRouter, Stack } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // --- Constants for Consistent Styling ---
 const PRIMARY_COLOR = "#007AFF"; 
 const SUCCESS_COLOR = "#4CAF50"; 
 const DANGER_COLOR = "#F44336"; 
+const WARNING_COLOR = "#f49836"; 
 const BACKGROUND_COLOR = "#F9F9F9";
 const CARD_BACKGROUND = "#FFFFFF";
 const DEBOUNCE_DELAY = 500; // 500ms delay for search
@@ -47,6 +49,17 @@ function useDebounce(value, delay) {
     return debouncedValue;
 }
 
+
+// Helper function for date formatting
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  return new Date(dateString).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+  });
+};
+
 // Optimized Filter Option Component (No change)
 const FilterOption = ({ label, isSelected, onPress }) => (
   <TouchableOpacity
@@ -63,7 +76,9 @@ const FilterOption = ({ label, isSelected, onPress }) => (
 // Optimized Seeker Card Component (No change)
 const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDetails }) => {
     const moderatorIconColor = item.moderator ? SUCCESS_COLOR : DANGER_COLOR;
-    const moderatorIconName = item.moderator ? "person" : "person-remove"; 
+    const moderatorIconName = item.moderator ? "person-outline" : "person-remove-outline"; 
+    const callerIconColor = item.caller ? SUCCESS_COLOR : WARNING_COLOR;
+    const callerIconName = item.caller ? "call-outline" : "alert-circle-outline"; 
 
     return (
         <TouchableOpacity
@@ -88,6 +103,7 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
                         <Text style={styles.name} numberOfLines={1}>
                             {item.first_name} {item.last_name}
                         </Text>
+                        <Ionicons name={callerIconName} size={18} color={callerIconColor} style={{marginLeft: 8}} />
                         <Ionicons name={moderatorIconName} size={18} color={moderatorIconColor} style={{marginLeft: 8}} />
                     </View>
                     
@@ -98,10 +114,17 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
                         <Ionicons name="call-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
                         <Text style={styles.mobileText}>{item.mobile}</Text>
                     </View>
+
+                    <View style={styles.detailsRow}>
+                        <Ionicons name="calendar-number-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
+                        <Text style={styles.locationText} numberOfLines={1}>{formatDate(item.created_at)}</Text>                        
+                        <Ionicons name="today-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
+                        <Text style={styles.mobileText}>{formatDate(item.updated_at)}</Text>
+                    </View>
                     
                     <View style={styles.typeBadgeContainer}>
                         <Text style={styles.typeBadgeText}>
-                            {item.type === 1 ? 'Pratishthan Seeker' : 'Public Seeker'}
+                            {item.type === 1 ? 'Pratishthan Seeker' : 'PP Seeker'}
                         </Text>
                     </View>
 
@@ -129,14 +152,47 @@ export default function SeekersListScreen() {
   const [activeTypeTab, setActiveTypeTab] = useState("all");
   const [zones, setZones] = useState([]);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  
+  const [showPicker, setShowPicker] = useState(false);
+  const [currentMode, setCurrentMode] = useState('from_date'); // Kaunsa field update karna hai
+
   const { user } = useContext(AuthContext);
   const role = user?.role_id ? Number(user.role_id) : null;
   const zoneid = user?.zone_id ? Number(user.zone_id) : null;
   const isDisabled = !(role === 2 || role === 3);
 
   const modalTitle = role === 2 ? "Caller" : role === 3 ? "Mentor" : "Not Allowed";
-                      
+          
+  const showDatePicker = (mode) => {
+      setCurrentMode(mode);
+      setShowPicker(true);
+  };
+
+  const onDateChange = (event, selectedDate) => {
+      setShowPicker(false);
+      
+      if (event.type === 'set' && selectedDate) {
+          // Bina timezone error ke YYYY-MM-DD format
+          const year = selectedDate.getFullYear();
+          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(selectedDate.getDate()).padStart(2, '0');
+          const formattedDate = `${year}-${month}-${day}`;
+          
+          setFilters({
+              ...filters,
+              [currentMode]: formattedDate
+          });
+      }
+  };
+
+  // Date object nikalne ke liye helper
+  const getPickerDate = () => {
+    const dateString = filters[currentMode];
+    if (dateString) {
+        return new Date(dateString);
+    }
+    return new Date();
+  };
+
   const getButtonLabel = () => {
     if (role === 2) return `Assign Caller (${selectedSeekers.length})`;
     if (role === 3) return `Assign Mentor (${selectedSeekers.length})`;
@@ -156,6 +212,12 @@ export default function SeekersListScreen() {
     attended_session_2: null,
     attended_session_3: null,
     attended_session_4: null,
+    from_date: "", // YYYY-MM-DD format
+    to_date: "",
+    month_1: null,
+    month_2: null,
+    month_3: null,
+    month_4: null,
   });
 
   // 🛠️ NEW: Debounce the 'name' filter input
@@ -301,6 +363,12 @@ export default function SeekersListScreen() {
       attended_session_2: null,
       attended_session_3: null,
       attended_session_4: null,
+      from_date: "", // YYYY-MM-DD format
+      to_date: "",
+      month_1: null,
+      month_2: null,
+      month_3: null,
+      month_4: null,
     };
     setFilters(resetFilters);
     setActiveTypeTab("all");
@@ -529,6 +597,31 @@ export default function SeekersListScreen() {
             </View>
 
             <ScrollView contentContainerStyle={{paddingBottom: 20}}>
+             
+              <Text style={styles.sectionTitle}>Date Range</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                
+                {/* From Date */}
+                <TouchableOpacity 
+                  style={[styles.input, { flex: 0.48 }]} 
+                  onPress={() => showDatePicker('from_date')}
+                >
+                  <Text style={{ color: filters.from_date ? '#000' : '#A0A0A0' }}>
+                    {filters.from_date || "From Date"}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* To Date */}
+                <TouchableOpacity 
+                  style={[styles.input, { flex: 0.48 }]} 
+                  onPress={() => showDatePicker('to_date')}
+                >
+                  <Text style={{ color: filters.to_date ? '#000' : '#A0A0A0' }}>
+                    {filters.to_date || "To Date"}
+                  </Text>
+                </TouchableOpacity>
+
+              </View>
 
               <Text style={styles.sectionTitle}>General Details</Text>
 
@@ -571,50 +664,8 @@ export default function SeekersListScreen() {
                   </Picker>
               </View>
 
-              <Text style={styles.sectionTitle}>Follow-up Status</Text>
-              
-              {/* Interested in Follow-up */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Interested in Follow-up</Text>
-                <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.interested_in_followup === true} onPress={() => setFilters({ ...filters, interested_in_followup: true })} />
-                    <FilterOption label="No" isSelected={filters.interested_in_followup === false} onPress={() => setFilters({ ...filters, interested_in_followup: false })} />
-                    <FilterOption label="All" isSelected={filters.interested_in_followup === null} onPress={() => setFilters({ ...filters, interested_in_followup: null })} />
-                </View>
-              </View>
-              
-              {/* Moderator Assigned */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Mentor Assigned</Text>
-                <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.moderator_id === true} onPress={() => setFilters({ ...filters, moderator_id: true })} />
-                    <FilterOption label="No" isSelected={filters.moderator_id === false} onPress={() => setFilters({ ...filters, moderator_id: false })} />
-                    <FilterOption label="All" isSelected={filters.moderator_id === null} onPress={() => setFilters({ ...filters, moderator_id: null })} />
-                </View>
-              </View>
 
-
-              <Text style={styles.sectionTitle}>Activity Checklist</Text>
-
-              {/* Attended Puja */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Attended Puja</Text>
-                <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.attended_puja === true} onPress={() => setFilters({ ...filters, attended_puja: true })} />
-                    <FilterOption label="No" isSelected={filters.attended_puja === false} onPress={() => setFilters({ ...filters, attended_puja: false })} />
-                    <FilterOption label="All" isSelected={filters.attended_puja === null} onPress={() => setFilters({ ...filters, attended_puja: null })} />
-                </View>
-              </View>
-
-              {/* Attended Centre */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Attended Centre</Text>
-                <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.attended_centres === true} onPress={() => setFilters({ ...filters, attended_centres: true })} />
-                    <FilterOption label="No" isSelected={filters.attended_centres === false} onPress={() => setFilters({ ...filters, attended_centres: false })} />
-                    <FilterOption label="All" isSelected={filters.attended_centres === null} onPress={() => setFilters({ ...filters, attended_centres: null })} />
-                </View>
-              </View>
+              <Text style={styles.sectionTitle}>Activity Checklist (Pratishthan)</Text>
 
               {/* Pratishthan Sessions (1st to 4th) */}
               {[1, 2, 3, 4].map((n) => (
@@ -628,7 +679,54 @@ export default function SeekersListScreen() {
                 </View>
               ))}
 
+              <Text style={styles.sectionTitle}>Activity Checklist (Mentor)</Text>
+
+              {[1, 2, 3, 4].map((n) => (
+                <View key={`month-${n}`} style={styles.optionGroup}>
+                  <Text style={styles.optionGroupLabel}>{`Month ${n} Follow-up`}</Text>
+                  <View style={styles.optionRow}>
+                    <FilterOption 
+                      label="Done" 
+                      isSelected={filters[`month_${n}`] === true} 
+                      onPress={() => setFilters({ ...filters, [`month_${n}`]: true })} 
+                    />
+                    <FilterOption 
+                      label="Pending" 
+                      isSelected={filters[`month_${n}`] === false} 
+                      onPress={() => setFilters({ ...filters, [`month_${n}`]: false })} 
+                    />
+                    <FilterOption 
+                      label="All" 
+                      isSelected={filters[`month_${n}`] === null} 
+                      onPress={() => setFilters({ ...filters, [`month_${n}`]: null })} 
+                    />
+                  </View>
+                </View>
+              ))}
+
+              {/* Attended Centre */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>Attended Centre</Text>
+                <View style={styles.optionRow}>
+                    <FilterOption label="Yes" isSelected={filters.attended_centres === true} onPress={() => setFilters({ ...filters, attended_centres: true })} />
+                    <FilterOption label="No" isSelected={filters.attended_centres === false} onPress={() => setFilters({ ...filters, attended_centres: false })} />
+                    <FilterOption label="All" isSelected={filters.attended_centres === null} onPress={() => setFilters({ ...filters, attended_centres: null })} />
+                </View>
+              </View>
+
             </ScrollView>
+
+            {showPicker && (
+              <DateTimePicker
+                // Aaj ki date ki jagah, select ki hui date dikhayein
+                value={getPickerDate()} 
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDateChange}
+                // Optional: Future dates rokne ke liye
+                maximumDate={new Date()} 
+              />
+            )}
 
             <SafeAreaView edges={['bottom']} style={styles.safeAreaFooter}>
               <View style={styles.modalFooter}>
