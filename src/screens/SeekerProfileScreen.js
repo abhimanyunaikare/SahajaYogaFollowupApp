@@ -105,19 +105,23 @@ export default function SeekerProfileScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {/* ✏️ Edit Button */}
-          <TouchableOpacity
-            onPress={() => router.push(`/seeker/edit/${id}`)}
-            style={{ marginRight: 10 }}
-          >
-            <Ionicons name="create-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        </View>
+        // ✨ Ek wrapper tag (Fragment) add kiya gaya hai
+        <>
+          {user?.permissions?.includes(17) && (
+            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 15 }}>
+              {/* ✏️ Edit Button */}
+              <TouchableOpacity
+                onPress={() => router.push(`/seeker/edit/${id}`)}
+              >
+                <Ionicons name="create-outline" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </>
       ),
       title: "Seeker Details",
     });
-  }, [navigation, id, router]); // Added router dependency
+  }, [navigation, id, router, user?.permissions]); // Permissions ko dependency mein rakhein
 
   // Helper function for date formatting
   const formatDate = (dateString) => {
