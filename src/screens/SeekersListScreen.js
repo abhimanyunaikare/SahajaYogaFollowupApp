@@ -22,6 +22,7 @@ import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import WhatsAppModal from "../components/WhatsAppModal";
 
 // --- Constants for Consistent Styling ---
 const PRIMARY_COLOR = "#007AFF"; 
@@ -73,66 +74,163 @@ const FilterOption = ({ label, isSelected, onPress }) => (
   </TouchableOpacity>
 );
 
+// Add this helper function above the SeekerCard component
+const getStatusBadge = (item) => {
+  if (item.interested_in_followup === false) {
+    return { label: 'Not Interested', bg: '#FCEBEB', border: '#F09595', text: '#791F1F' };
+  }
+  if (item.moderator) {
+    return { label: 'Mentor Assigned', bg: '#EEEDFE', border: '#AFA9EC', text: '#3C3489' };
+  }
+  if (item.called === true) {
+    return { label: 'Seeker Called', bg: '#E1F5EE', border: '#5DCAA5', text: '#085041' };
+  }
+  if (item.caller) {
+    return { label: 'Caller Assigned', bg: '#E6F1FB', border: '#85B7EB', text: '#0C447C' };
+  }
+  return { label: 'New Seeker', bg: '#FAEEDA', border: '#EF9F27', text: '#633806' };
+};
+
 // Optimized Seeker Card Component (No change)
 const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDetails }) => {
     const moderatorIconColor = item.moderator ? SUCCESS_COLOR : DANGER_COLOR;
     const moderatorIconName = item.moderator ? "person-outline" : "person-remove-outline"; 
     const callerIconColor = item.caller ? SUCCESS_COLOR : WARNING_COLOR;
-    const callerIconName = item.caller ? "call-outline" : "alert-circle-outline"; 
+    const callerIconName = item.caller ? "mic-outline" : "mic-off-outline"; 
 
+    // Extract the checklist object safely
+    const checklist = item.checklist || {};
+
+    // Helper to render numbered dots for Sessions or Months
+    // Helper to render numbered indicators (1 2 3 4)
+    const renderProgressDots = (prefix, activeColor) => {
+      return (
+          <View style={styles.dotGroup}>
+              {[1, 2, 3, 4].map((num) => {
+                  // Look inside checklist instead of the top-level item
+                  const isAttended = checklist[`${prefix}_${num}`] === true || checklist[`${prefix}_${num}`] === 1;
+                  
+                  return (
+                      <View 
+                          key={`${prefix}-${num}`} 
+                          style={[
+                              styles.miniDot, 
+                              { backgroundColor: isAttended ? activeColor : '#E5E7EB' }
+                          ]}
+                      >
+                          <Text style={[styles.dotText, { color: isAttended ? '#fff' : '#9CA3AF' }]}>
+                              {num}
+                          </Text>
+                      </View>
+                  );
+              })}
+          </View>
+      );
+  };
+  
+    // 2. Monthly Follow-ups (1-4)
+    const followupsCount = [
+        item.month_1, 
+        item.month_2, 
+        item.month_3, 
+        item.month_4
+    ].filter(val => val === true || val === 1).length;
+
+    // 3. Logic for "Did the caller call?" 
+    // Usually mapped to called having a value (True/False) vs being null
+    const hasCallAttempt = item.called === true;
+    
     return (
-        <TouchableOpacity
-            style={[styles.card, isSelected && styles.selectedCard]}
-            activeOpacity={0.8}
-            onPress={onViewDetails}
-        >
-            <View style={styles.cardContent}>
-                <TouchableOpacity
-                    style={styles.checkboxContainer}
-                    onPress={onToggleSelection}
-                >
-                    <Ionicons
-                        name={isSelected ? "checkbox-outline" : "square-outline"}
-                        size={22} 
-                        color={isSelected ? PRIMARY_COLOR : "#A0A0A0"}
-                    />
-                </TouchableOpacity>
-        
-                <View style={styles.infoContainer}>
-                    <View style={styles.nameRow}>
-                        <Text style={styles.name} numberOfLines={1}>
-                            {item.first_name} {item.last_name}
-                        </Text>
-                        <Ionicons name={callerIconName} size={18} color={callerIconColor} style={{marginLeft: 8}} />
-                        <Ionicons name={moderatorIconName} size={18} color={moderatorIconColor} style={{marginLeft: 8}} />
-                    </View>
-                    
-                    <View style={styles.detailsRow}>
-                        <Ionicons name="location-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
-                        <Text style={styles.locationText} numberOfLines={1}>{item.zone?.name}, {item.city || "N/A"}</Text>
-                        
-                        <Ionicons name="call-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
-                        <Text style={styles.mobileText}>{item.mobile}</Text>
-                    </View>
+          <TouchableOpacity
+              style={[styles.card, isSelected && styles.selectedCard]}
+              activeOpacity={0.8}
+              onPress={onViewDetails}
+          >
+              <View style={styles.cardContent}>
+                  <TouchableOpacity
+                      style={styles.checkboxContainer}
+                      onPress={onToggleSelection}
+                  >
+                      <Ionicons
+                          name={isSelected ? "checkbox-outline" : "square-outline"}
+                          size={22} 
+                          color={isSelected ? PRIMARY_COLOR : "#A0A0A0"}
+                      />
+                  </TouchableOpacity>
+          
+                  <View style={styles.infoContainer}>
+                      {/* Top Row: Name and Assignment Status */}
+                      <View style={styles.nameRow}>
+                          <Text style={styles.name} numberOfLines={1}>
+                              {item.first_name} {item.last_name}
+                          </Text>
+                          {/* Do Not Delete below code as we will need it later */}
+                          {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Ionicons 
+                                  name={hasCallAttempt ? "call" : "call-outline"} 
+                                  size={18} 
+                                  color={hasCallAttempt ? SUCCESS_COLOR : DANGER_COLOR} 
+                              />
+                              <Ionicons name={callerIconName} size={18} color={callerIconColor} style={{marginLeft: 8}} />
+                              <Ionicons name={moderatorIconName} size={18} color={moderatorIconColor} style={{marginLeft: 8}} />
+                          </View> */}
 
-                    <View style={styles.detailsRow}>
-                        <Ionicons name="calendar-number-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
-                        <Text style={styles.locationText} numberOfLines={1}>{formatDate(item.created_at)}</Text>                        
-                        <Ionicons name="today-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
-                        <Text style={styles.mobileText}>{formatDate(item.updated_at)}</Text>
-                    </View>
-                    
-                    <View style={styles.typeBadgeContainer}>
-                        <Text style={styles.typeBadgeText}>
-                            {item.type === 1 ? 'Pratishthan Seeker' : 'PP Seeker'}
-                        </Text>
-                    </View>
+                          {(() => {
+                                  const status = getStatusBadge(item);
+                                  return (
+                                      <View style={[
+                                          styles.typeBadgeStatusContainer,
+                                          { backgroundColor: status.bg, borderColor: status.border, padding: 2 }
+                                      ]}>
+                                          <Text style={[styles.typeBadgeStatusText, { color: status.text, fontSize:11 }]}>
+                                              {status.label}
+                                          </Text>
+                                      </View>
+                                  );
+                              })()}
 
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
-});
+                      </View>
+                      
+                      {/* Middle Rows: Location and Dates */}
+                      <View style={styles.detailsRow}>
+                          <Ionicons name="location-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
+                          <Text style={styles.locationText} numberOfLines={1}>{item.zone?.name}, {item.city || "N/A"}</Text>
+                          <Ionicons name="call-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
+                          <Text style={styles.mobileText}>{item.mobile}</Text>
+                      </View>
+
+                      <View style={styles.detailsRow}>
+                          <Ionicons name="calendar-number-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
+                          <Text style={styles.locationText} numberOfLines={1}>{formatDate(item.created_at)}</Text>                        
+                          <Ionicons name="today-outline" size={12} color="#6B7280" style={{marginLeft: 12, marginRight: 2}} />
+                          <Text style={styles.mobileText}>{formatDate(item.updated_at)}</Text>
+                      </View>
+                      
+                      {/* Bottom Row: Type Badge + Progress Indicators */}
+                      <View style={styles.bottomBadgeContainer}>
+                          <View style={styles.typeBadgeContainer}>
+                              <Text style={styles.typeBadgeText}>
+                                  {item.type === 1 ? 'Pratishthan Seeker' : 'PP Seeker'}
+                              </Text>
+                          </View>
+
+                          <View style={styles.progressSection}>
+                            <View style={styles.indicatorWrapper}>
+                                <Text style={styles.indicatorLabel}>S:</Text>
+                                {renderProgressDots('attended_session', PRIMARY_COLOR)}
+                            </View>
+                            
+                            <View style={[styles.indicatorWrapper, { marginLeft: 10 }]}>
+                                <Text style={styles.indicatorLabel}>M:</Text>
+                                {renderProgressDots('month', SUCCESS_COLOR)}
+                            </View>
+                        </View>
+                      </View>
+                  </View>
+              </View>
+          </TouchableOpacity>
+      );
+    });
 
 
 export default function SeekersListScreen() {
@@ -154,13 +252,14 @@ export default function SeekersListScreen() {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [currentMode, setCurrentMode] = useState('from_date'); // Kaunsa field update karna hai
+  const [whatsappModalVisible, setWhatsappModalVisible] = useState(false);
 
   const { user } = useContext(AuthContext);
   const role = user?.role_id ? Number(user.role_id) : null;
   const zoneid = user?.zone_id ? Number(user.zone_id) : null;
-  const isDisabled = !(role === 2 || role === 3);
+  const isDisabled = !(role === 2 || role === 3 || role === 10);
 
-  const modalTitle = role === 2 ? "Caller" : role === 3 ? "Mentor" : "Not Allowed";
+  const modalTitle = role === 2 ? "Caller" : role === 3 ? "Mentor" : role === 10 ? "Pratishthan Caller" : "Not Allowed";
           
   const showDatePicker = (mode) => {
       setCurrentMode(mode);
@@ -196,6 +295,7 @@ export default function SeekersListScreen() {
   const getButtonLabel = () => {
     if (role === 2) return `Assign Caller (${selectedSeekers.length})`;
     if (role === 3) return `Assign Mentor (${selectedSeekers.length})`;
+    if (role === 10) return `Assign Pratishthan Caller (${selectedSeekers.length})`;
     return "Not Allowed";
   };
   
@@ -250,6 +350,9 @@ export default function SeekersListScreen() {
       const data = response.data.data || [];
       const isLastPage = response.data.current_page >= response.data.last_page;
   
+      // ECHO TO TERMINAL HERE
+  // console.log("API Response Sample:", data[0]);
+
       setSeekers((prev) => 
         refreshing || pageNumber === 1 ? data : [...prev, ...data]
       );
@@ -441,6 +544,8 @@ export default function SeekersListScreen() {
       </TouchableOpacity>
   );
 
+  
+
   const renderHeaderRight = () => (
     <View style={styles.headerRightContainer}>
         <TouchableOpacity
@@ -559,26 +664,33 @@ export default function SeekersListScreen() {
       />
 
       {selectedSeekers.length > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.assignButton,
-            isDisabled && styles.assignButtonDisabled
-          ]}
-          disabled={isDisabled}
-          onPress={() => {
-            if (!isDisabled) {
-              fetchModerators();
-              setSelectedModerator(null); 
-              setModeratorModalVisible(true);
-            }
-          }}
-        >
-          <Text
-            style={styles.assignButtonText}
+        <View style={styles.floatingActions}>
+          {/* Existing assign button */}
+          <TouchableOpacity
+            style={[styles.assignButton, isDisabled && styles.assignButtonDisabled]}
+            disabled={isDisabled}
+            onPress={() => {
+              if (!isDisabled) {
+                fetchModerators();
+                setSelectedModerator(null);
+                setModeratorModalVisible(true);
+              }
+            }}
           >
-            {getButtonLabel()}
-          </Text>
-        </TouchableOpacity>
+            <Text style={styles.assignButtonText}>{getButtonLabel()}</Text>
+          </TouchableOpacity>
+
+          {/* New WhatsApp button */}
+          <TouchableOpacity
+            style={styles.whatsappButton}
+            onPress={() => setWhatsappModalVisible(true)}
+          >
+            <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+            <Text style={styles.whatsappButtonText}>
+              WhatsApp ({selectedSeekers.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* 🪟 Filter Modal */}
@@ -775,6 +887,12 @@ export default function SeekersListScreen() {
 
     </SafeAreaView>
 
+    <WhatsAppModal
+      visible={whatsappModalVisible}
+      onClose={() => setWhatsappModalVisible(false)}
+      selectedSeekers={selectedSeekers}
+      seekers={seekers}
+    />
     </>
   );
 }
@@ -938,12 +1056,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#C5E0FF',
   },
+  
   typeBadgeText: {
     fontSize: 11, 
     fontWeight: '600',
     color: '#1E40AF', 
   },
-
+ 
   // --- Assignment Button (Bottom Fix applied here too) ---
   assignButton: {
     position: "absolute",
@@ -963,11 +1082,11 @@ const styles = StyleSheet.create({
   assignButtonDisabled: {
     backgroundColor: "#A0A0A0",
   },
-  assignButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-  },
+  // assignButtonText: {
+  //   color: "#fff",
+  //   fontSize: 16,
+  //   fontWeight: "800",
+  // },
 
   // --- Modal Styles (Maintained Structure) ---
   modalOverlay: {
@@ -1137,8 +1256,101 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   homeButton: {
-    marginLeft: 10, // Adjust spacing from the screen edge
-    padding: 5,     // Make the touch target slightly larger
-    paddingRight: 20,
-},
+      marginLeft: 10, // Adjust spacing from the screen edge
+      padding: 5,     // Make the touch target slightly larger
+      paddingRight: 20,
+  },
+  statusBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginLeft: 5,
+  },
+  miniBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 2,
+    color: '#333',
+  },
+  statusBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dotGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 2,
+  },
+  dotText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  bottomBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  indicatorWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  indicatorLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    marginRight: 2,
+  },
+  dotGroup: {
+    flexDirection: 'row',
+  },
+  miniDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 4, // Slightly squared for a modern look
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 2,
+  },
+  dotText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  floatingActions: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 20 : 55,
+    left: 10, right: 10,
+    gap: 8,
+  },
+  whatsappButton: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, backgroundColor: "#25D366",
+    padding: 14, borderRadius: 12,
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 6,
+    // margin: 30
+  },
+  whatsappButtonText: {
+    color: "#fff", fontSize: 15, fontWeight: "700",
+  },
 });

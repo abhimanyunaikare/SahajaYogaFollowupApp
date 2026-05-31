@@ -21,7 +21,7 @@ interface ScannedSeeker {
 
 export default function SessionsScreen() {
   // const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice('back');
+  // const device = useCameraDevice('back');
   const camera = useRef<Camera>(null);
 
   const [showCamera, setShowCamera] = useState(false);

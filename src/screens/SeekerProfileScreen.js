@@ -1,12 +1,15 @@
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useEffect, useLayoutEffect, useState, useCallback , useContext} from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View , Linking} from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View , Linking, Alert} from "react-native";
 import api from "../api/apiClient";
 // Import useFocusEffect from the underlying React Navigation package
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons'; 
 import { AuthContext } from "../../src/context/AuthContext";
+import * as Clipboard from 'expo-clipboard';
 
+
+const PRIMARY_COLOR    = "#007AFF";
 // Helper component for displaying Yes/No status as a badge
 const StatusBadge = ({ isTrue }) => (
   <View style={[styles.statusBadge, isTrue ? styles.statusYes : styles.statusNo]}>
@@ -15,14 +18,15 @@ const StatusBadge = ({ isTrue }) => (
 );
 
 // Helper component for the main profile sections with icons
-const ProfileDetail = ({ iconName, label, value }) => (
+const ProfileDetail = ({ iconName, label, value, subValue }) => (
   <View style={styles.detailRow}>
-    <View style={styles.detailContent}>
-      <Ionicons name={iconName} size={20} color="#007AFF" style={styles.detailIcon} />
-      <View>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{value}</Text>
-      </View>
+    <Ionicons name={iconName} size={18} color={PRIMARY_COLOR} style={styles.detailIcon} />
+    <View style={styles.detailTextContainer}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+      {subValue && (
+        <Text style={styles.detailSubValue}>{subValue}</Text>
+      )}
     </View>
   </View>
 );
@@ -72,6 +76,20 @@ export default function SeekerProfileScreen() {
                         
   const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
   const router = useRouter();
+
+  const copyToClipboard = async (number) => {
+      if (!number) return;
+      
+      // Use the Expo native method
+      await Clipboard.setStringAsync(number);
+      
+      Alert.alert(
+          'Copied', 
+          'Mobile number copied to clipboard', 
+          [{ text: 'OK' }], 
+          { cancelable: true }
+      );
+  };
 
   // Helper function to fetch the seeker data
   const fetchSeeker = async () => {
@@ -164,7 +182,7 @@ export default function SeekerProfileScreen() {
             <Text style={styles.title}>{seeker.first_name} {seeker.last_name}</Text>
 
             <View style={styles.card}>
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
                 // Add the onPress handler here, passing the mobile number
                 onPress={() => handleCall(seeker.mobile)}
                 // Optional: Add a style to make it look clickable, if needed
@@ -176,7 +194,31 @@ export default function SeekerProfileScreen() {
                     value={seeker.mobile} 
                     valueStyle={styles.mobileNumber}
                 />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+
+            <View style={styles.containerRow}>
+                {/* Left Side: Click to Call */}
+                <TouchableOpacity 
+                    onPress={() => handleCall(seeker.mobile)}
+                    style={styles.clickableArea}
+                >
+                    <ProfileDetail 
+                        iconName="call-outline" 
+                        label="Mobile" 
+                        value={seeker.mobile} 
+                        valueStyle={styles.mobileNumber}
+                    />
+                </TouchableOpacity>
+
+                {/* Right Side: Copy Button */}
+                <TouchableOpacity 
+                    onPress={() => copyToClipboard(seeker.mobile)}
+                    style={styles.copyButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Makes small icon easy to press
+                >
+                    <Ionicons name="copy-outline" size={20} color="#666" />
+                </TouchableOpacity>
+            </View>
               
               <View style={styles.separator} />
 
@@ -219,6 +261,15 @@ export default function SeekerProfileScreen() {
                 value={seeker.moderator ? seeker.moderator.name : 'Mentor not assigned'} 
               />
               
+              <ProfileDetail 
+                iconName="person-outline" 
+                label="Caller Assigned" 
+                value={seeker.caller ? seeker.caller.name : 'Caller not assigned'} 
+                subValue={seeker.caller && seeker.called_at 
+                  ? `Called on ${new Date(seeker.called_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` 
+                  : null}
+              />
+
               <ProfileDetail 
                 iconName="reader-outline" 
                 label="Comment" 
@@ -541,5 +592,28 @@ const styles = StyleSheet.create({
     color: '#007AFF',             // Use a link color (iOS blue)
     textDecorationLine: 'underline', // Add the underline cue
     fontWeight: '600',
+},
+containerRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'between',
+  paddingVertical: 5,
+},
+clickableArea: {
+  flex: 1, // Takes up the majority of the row space
+},
+copyButton: {
+  paddingHorizontal: 10,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+mobileNumber: {
+  color: '#007AFF', // Makes it visually look like a clickable link
+  textDecorationLine: 'underline',
+},
+detailSubValue: {
+  fontSize: 11,
+  color: '#9E9E9E',
+  marginTop: 1,
 },
 });

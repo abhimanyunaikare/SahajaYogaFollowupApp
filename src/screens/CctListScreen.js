@@ -11,10 +11,11 @@ import {
 } from "react-native";
 import { useRouter , Stack} from "expo-router";
 import api from "../../src/api/apiClient"; 
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 // --- Theme Constants ---
 const PRIMARY_COLOR = "#007AFF"; 
+const SUCCESS_COLOR = "#34C759";
 const TEXT_COLOR = "#1C1C1E";
 const SUBTLE_TEXT_COLOR = "#8E8E93";
 const BACKGROUND_COLOR = "#F2F2F7"; 
@@ -43,6 +44,13 @@ export default function TeamMembersScreen() {
     router.push(`users/seekers/${memberId}?name=${memberName}`);
   };
 
+  // Navigate to new screen showing seekers called by this member
+  const handleCalledPress = (memberId, memberName) => {
+    router.push(
+      `users/seekers-called?id=${memberId}&name=${encodeURIComponent(memberName)}`
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -61,44 +69,63 @@ export default function TeamMembersScreen() {
           contentContainerStyle={styles.listContent}
           // 🚀 Bottom Navigation fix
           ListFooterComponent={<View style={{ height: 150 }} />}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.itemCard}
-              onPress={() => handleMemberPress(item.id, item.name)}
-              activeOpacity={0.7}
-            >
-              {/* Left Side: Avatar with Initials */}
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.name?.substring(0, 2).toUpperCase()}</Text>
-              </View>
+          renderItem={({ item }) => {
+            const assignedCount = item.assigned_seekers_count || 0;
+            const calledCount = item.called_count || 0;
 
-              <View style={styles.itemContent}>
-                  {/* Name and Badge */}
-                  <View style={styles.titleRow}>
+            return (
+              <TouchableOpacity
+                style={styles.itemCard}
+                onPress={() => handleMemberPress(item.id, item.name)}
+                activeOpacity={0.7}
+              >
+                {/* Left Side: Avatar with Initials */}
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.name?.substring(0, 2).toUpperCase()}</Text>
+                </View>
+
+                <View style={styles.itemContent}>
+                    {/* Name */}
                     <Text style={styles.itemTitle}>{item.name}</Text>
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countText}>{item.assigned_seekers_count || 0} Seekers</Text>
+
+                    {/* Phone Row */}
+                    <View style={styles.detailRow}>
+                        <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
+                        <Text style={styles.subtitle}>{item.mobile || 'No Mobile'}</Text>
+                        <View style={styles.dotSeparator} />
+                        <Text style={styles.subtitle}>Calling Team Member</Text>
                     </View>
-                  </View>
-                  
-                  {/* Phone Row */}
-                  <View style={styles.detailRow}>
-                      <Ionicons name="call-outline" size={14} color={SUBTLE_TEXT_COLOR} />
-                      <Text style={styles.subtitle}>{item.mobile || 'No Mobile'}</Text>
-                      <View style={styles.dotSeparator} />
-                      <Text style={styles.subtitle}>Calling Team Member</Text>
-                  </View>
-                  
-                  {/* New Info: Assigned Date (Optional if available) */}
-                  {/* <View style={styles.infoRow}>
-                    <MaterialCommunityIcons name="account-check-outline" size={14} color={PRIMARY_COLOR} />
-                    <Text style={styles.activeText}>Active Caller</Text>
-                  </View> */}
-              </View>
-              
-              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
-            </TouchableOpacity>
-          )}
+
+                    {/* Stats Row */}
+                    <View style={styles.statsRow}>
+                      {/* Assigned count — non-tappable */}
+                      <View style={styles.statBadge}>
+                        <Ionicons name="people-outline" size={12} color={PRIMARY_COLOR} />
+                        <Text style={styles.statBadgeText}>{assignedCount} Assigned</Text>
+                      </View>
+
+                      {/* Called count — tappable, navigates to called seekers list */}
+                      <TouchableOpacity
+                        style={[styles.statBadge, styles.calledBadge]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCalledPress(item.id, item.name);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={12} color={SUCCESS_COLOR} />
+                        <Text style={[styles.statBadgeText, styles.calledBadgeText]}>
+                          {calledCount} Called
+                        </Text>
+                        <Ionicons name="chevron-forward" size={11} color={SUCCESS_COLOR} />
+                      </TouchableOpacity>
+                    </View>
+                </View>
+                
+                <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+              </TouchableOpacity>
+            );
+          }}
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>
                 <Ionicons name="people-circle-outline" size={60} color={SUBTLE_TEXT_COLOR} />
@@ -115,7 +142,6 @@ const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 12, paddingVertical: 12 },
   
-  // --- New Modern Card Styles ---
   itemCard: {
     backgroundColor: ITEM_BACKGROUND,
     borderRadius: 12,
@@ -139,23 +165,27 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: PRIMARY_COLOR, fontWeight: '700', fontSize: 16 },
   itemContent: { flex: 1 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR },
-  
-  countBadge: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  countText: { fontSize: 11, color: PRIMARY_COLOR, fontWeight: '700' },
 
-  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  itemTitle: { fontSize: 16, fontWeight: "700", color: TEXT_COLOR, marginBottom: 3 },
+
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   subtitle: { fontSize: 13, color: SUBTLE_TEXT_COLOR, marginLeft: 4 },
   dotSeparator: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#C7C7CC", marginHorizontal: 8 },
-  
-  infoRow: { flexDirection: 'row', alignItems: 'center' },
-  activeText: { fontSize: 12, color: PRIMARY_COLOR, marginLeft: 5, fontWeight: '500' },
+
+  // --- Stats Row ---
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statBadgeText: { fontSize: 12, color: PRIMARY_COLOR, fontWeight: '600' },
+  calledBadge: { backgroundColor: '#EDFAF1' },
+  calledBadgeText: { color: SUCCESS_COLOR },
 
   emptyContainer: { padding: 40, alignItems: 'center', marginTop: 60 },
   emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR }

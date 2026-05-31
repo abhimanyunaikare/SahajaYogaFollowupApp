@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Sahajayoga Followup",
+    "name": "Sahajayoga Followup (Dev)",
     "slug": "sahajayogafollowup",
     "version": "2.0",
     "scheme": "sahajayoga-app",
@@ -18,7 +18,8 @@
       "permissions": [
         "android.permission.CAMERA"
       ],
-      "package": "com.sahajayoga.followup"
+      // "package": "com.sahajayoga.followup"
+      "package": "com.sahajayoga.dev"
     },
     "plugins": [
       [

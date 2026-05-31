@@ -37,6 +37,9 @@ const PERMISSIONS = {
   AREA: 13,
   SESSIONS: 15,
   SUCCESS: 16,
+  NONINTERESTED: 18,
+  CCRUSER: 19,
+  ALLSEEKERS: 20,
 };
 
 export default function HomeScreen() {
@@ -82,18 +85,21 @@ export default function HomeScreen() {
     }, [user?.role_id, loading]);
 
     const menuItems = [
-      { id: "1", title: "Seekers List", icon: "people", color: PRIMARY_COLOR, route: "/seekers" }, 
+      { id: "1", title: "New Seekers List", icon: "people", color: PRIMARY_COLOR, route: "/seekers" }, 
       { id: "2", title: "Add Seeker", icon: "person-add", color: SECONDARY_COLOR, route: "/addSeeker", permissionId: PERMISSIONS.ADD_SEEKER },
       { id: "3", title: "Reports", icon: "bar-chart", color: "#FF9800", route: "/reports", permissionId: PERMISSIONS.REPORTS },
       { id: "4", title: "Roles", icon: "key-outline", color: "#ac50f2", route: "/roles", permissionId: PERMISSIONS.ROLES },
       { id: "5", title: "Users", icon: "person-circle-outline", color: "#22d6d6", route: "/users", permissionId: PERMISSIONS.USERS },
-      { id: "6", title: "CCT Users", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.CCT },
+      { id: "6", title: "CCT - Central Calling Team", icon: "people-circle-outline", color: "#C25D9A", route: "/cct_users", permissionId: PERMISSIONS.CCT },
       { id: "7", title: "Zonal Statistics", icon: "man-outline", color: "#c27f5d", route: "/users/zonal", permissionId: PERMISSIONS.ZONAL },
       { id: "8", title: "Mentors", icon: "ribbon-outline", color: "#6d853e", route: "/users/moderators", permissionId: PERMISSIONS.MENTOR },
       { id: "9", title: "Zone", icon: "compass-outline", color: "#3e857e", route: "/zone", permissionId: PERMISSIONS.ZONE },
       { id: "10", title: "Area", icon: "location-outline", color: "#803e85", route: "/area", permissionId: PERMISSIONS.AREA },
       { id: "11", title: "Sessions", icon: "apps-outline", color: "#853e47", route: "/sessions", permissionId: PERMISSIONS.SESSIONS },
       { id: "12", title: "Success", icon: "checkmark-done-outline", color: "#66a82f", route: "/success", permissionId: PERMISSIONS.SUCCESS },
+      { id: "13", title: "Non-Interested", icon: "person-remove-outline", color: "#a8492f", route: "/noninterested", permissionId: PERMISSIONS.NONINTERESTED },
+      { id: "14", title: "SCT - Sessions Calling Team", icon: "people-outline", color: "#2f53a8", route: "/ccrusers", permissionId: PERMISSIONS.CCRUSER },
+      { id: "15", title: "All Seekers", icon: "earth-outline", color: "#2f53a8", route: "/allseekers", permissionId: PERMISSIONS.ALLSEEKERS },
     ];
 
     const accessibleMenuItems = menuItems.filter((item) => {
