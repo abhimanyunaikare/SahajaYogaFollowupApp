@@ -241,10 +241,10 @@ export default function EditSeekerScreen() {
             <TextInput style={[styles.textInput, {color: SUBTLE_COLOR}]} value={form.mobile} editable={false}/>
         </FieldWrapper>
 
-        <Text style={styles.label}>Occupation</Text>
+        {/* <Text style={styles.label}>Occupation</Text>
         <FieldWrapper iconName="briefcase-outline">
             <TextInput style={styles.textInput} value={form.occupation} onChangeText={(t) => handleChange("occupation", t)}/>
-        </FieldWrapper>
+        </FieldWrapper> */}
         
         <Text style={styles.label}>Age Range</Text>
         <FieldWrapper iconName="calendar-outline">
@@ -308,7 +308,7 @@ export default function EditSeekerScreen() {
             </Picker>
         </FieldWrapper>
 
-        <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Status & Follow-up</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Calling Status</Text>
         
         <View style={styles.switchContainer}>
             <Text style={styles.switchLabel}>Seeker Called</Text>

@@ -1,9 +1,17 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const ENV = "local";    // change to "production" when needed
+
+const BASE_URLS = {
+  production: "http://sahajayoga-pune.org/api",
+  dev: "http://sahajayoga-pune.org/dev/api",  // or dev.sahajayoga-pune.org/api
+  local: "http://192.168.128.131:8000/api",
+};
+
 const api = axios.create({
-  baseURL: 'http://sahajayoga-pune.org/api', 
-  // baseURL: 'http://192.168.243.131:8000/api', 
+  // baseURL: 'http://sahajayoga-pune.org/api', 
+  baseURL: BASE_URLS[ENV],
   timeout: 30000,
   headers: {
     'Accept': 'application/json',

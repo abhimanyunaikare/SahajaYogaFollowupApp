@@ -344,6 +344,23 @@ export default function AddSeekerScreen() {
           </View>
         )}
 
+
+      <Text style={styles.label}>Seeker Type *</Text>
+        <FieldWrapper iconName="people-outline" disabled={isRoleRestricted}>
+          <Picker
+            selectedValue={typeValue}
+            onValueChange={(v) => handleChange("type", v)}
+            enabled={!isRoleRestricted}
+            style={styles.picker}
+          >
+            {!isRoleRestricted && (
+              <Picker.Item label="Select Type" value="" />
+            )}
+            <Picker.Item label="Pratishthan" value="1" />
+            <Picker.Item label="Public" value="2" />
+          </Picker>
+        </FieldWrapper>
+
         <Text style={styles.label}>Age Range</Text>
         <FieldWrapper iconName="calendar-outline">
           <Picker
@@ -371,21 +388,6 @@ export default function AddSeekerScreen() {
           </Picker>
         </FieldWrapper>
 
-        <Text style={styles.label}>Seeker Type *</Text>
-        <FieldWrapper iconName="people-outline" disabled={isRoleRestricted}>
-          <Picker
-            selectedValue={typeValue}
-            onValueChange={(v) => handleChange("type", v)}
-            enabled={!isRoleRestricted}
-            style={styles.picker}
-          >
-            {!isRoleRestricted && (
-              <Picker.Item label="Select Type" value="" />
-            )}
-            <Picker.Item label="Pratishthan" value="1" />
-            <Picker.Item label="Public" value="2" />
-          </Picker>
-        </FieldWrapper>
 
         {/* Location field — only shown for Public type */}
         {isPublicType && (

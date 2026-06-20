@@ -1,42 +1,52 @@
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import React, { useEffect, useLayoutEffect, useState, useCallback , useContext} from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View , Linking, Alert} from "react-native";
+import React, { useEffect, useLayoutEffect, useState, useCallback, useContext } from "react";
+import {
+  ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity,
+  View, Linking, Alert, Switch
+} from "react-native";
 import api from "../api/apiClient";
-// Import useFocusEffect from the underlying React Navigation package
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons'; 
+import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { AuthContext } from "../../src/context/AuthContext";
 import * as Clipboard from 'expo-clipboard';
 
+const PRIMARY_COLOR = "#007AFF";
 
-const PRIMARY_COLOR    = "#007AFF";
-// Helper component for displaying Yes/No status as a badge
+// ─── Ordinal helper ──────────────────────────────────────────────────────────
+const getOrdinal = (n) => ['1st', '2nd', '3rd', '4th'][n - 1] ?? `${n}th`;
+
+// ─── Helper: Status Badge ────────────────────────────────────────────────────
 const StatusBadge = ({ isTrue }) => (
   <View style={[styles.statusBadge, isTrue ? styles.statusYes : styles.statusNo]}>
     <Text style={styles.badgeText}>{isTrue ? "Yes" : "No"}</Text>
   </View>
 );
 
-// Helper component for the main profile sections with icons
+// ─── Helper: Month Badge (softer "Pending" instead of red "No") ──────────────
+const MonthBadge = ({ isTrue }) => (
+  <View style={[styles.statusBadge, isTrue ? styles.statusYes : styles.statusPending]}>
+    <Text style={styles.badgeText}>{isTrue ? "Done" : "Pending"}</Text>
+  </View>
+);
+
+// ─── Helper: Profile Detail Row ──────────────────────────────────────────────
 const ProfileDetail = ({ iconName, label, value, subValue }) => (
   <View style={styles.detailRow}>
     <Ionicons name={iconName} size={18} color={PRIMARY_COLOR} style={styles.detailIcon} />
     <View style={styles.detailTextContainer}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
-      {subValue && (
-        <Text style={styles.detailSubValue}>{subValue}</Text>
-      )}
+      {subValue && <Text style={styles.detailSubValue}>{subValue}</Text>}
     </View>
   </View>
 );
 
-// Helper component for checklist items
-const ChecklistItem = ({ label, isTrue, comment }) => (
+// ─── Helper: Checklist Item ──────────────────────────────────────────────────
+const ChecklistItem = ({ label, isTrue, comment, badgeType }) => (
   <View style={styles.checklistItem}>
     <View style={styles.checklistRow}>
       <Text style={styles.checklistLabel}>{label}</Text>
-      <StatusBadge isTrue={isTrue} />
+      {badgeType === 'month' ? <MonthBadge isTrue={isTrue} /> : <StatusBadge isTrue={isTrue} />}
     </View>
     {comment && comment !== "N/A" && (
       <View style={styles.commentContainer}>
@@ -47,12 +57,40 @@ const ChecklistItem = ({ label, isTrue, comment }) => (
   </View>
 );
 
-// Function to handle the call action
+// ─── Helper: Reminder Call Note ───────────────────────────────────────────────
+// Shown right under an attended session row when the reminder call for the
+// *next* session has been marked as made. Only renders when `made` is true.
+const ReminderCallNote = ({ made, nextOrdinal }) => {
+  if (!made) return null;
+  return (
+    <View style={styles.reminderCallRow}>
+      <FontAwesome5 name="phone-alt" size={11} color="#1565C0" />
+      <Text style={styles.reminderCallText}>
+        Reminder call made for {nextOrdinal} session
+      </Text>
+    </View>
+  );
+};
+
+// ─── Helper: Section Header with optional Edit button ────────────────────────
+const SectionHeader = ({ title, subtitle, canEdit, onEdit }) => (
+  <View style={styles.sectionHeaderRow}>
+    <View style={{ flex: 1 }}>
+      <Text style={styles.sectionHeader}>{title}</Text>
+      {subtitle && <Text style={styles.dateText}>{subtitle}</Text>}
+    </View>
+    {canEdit && (
+      <TouchableOpacity onPress={onEdit} style={styles.smallEditBtn}>
+        <Ionicons name="create-outline" size={13} color="#fff" />
+        <Text style={styles.smallEditText}>Edit</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+// ─── Handle Call ─────────────────────────────────────────────────────────────
 const handleCall = (phoneNumber) => {
-  // Format the number to ensure it has the 'tel:' scheme
   const url = `tel:${phoneNumber}`;
-  
-  // Check if the device can open the URL (i.e., make calls)
   Linking.canOpenURL(url)
     .then(supported => {
       if (!supported) {
@@ -64,41 +102,34 @@ const handleCall = (phoneNumber) => {
     .catch(err => console.error('An error occurred', err));
 };
 
+// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function SeekerProfileScreen() {
   const [seeker, setSeeker] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigation = useNavigation();const { user } = useContext(AuthContext);
+  const [savingInterested, setSavingInterested] = useState(false);
 
-  // Use optional chaining and ensure we have an array before calling .includes
-  // const canEditSeeker = Array.isArray(user?.permissions) && 
-  //                       user?.permissions_map?.edit_seeker && 
-  //                       user.permissions.includes(user.permissions_map.edit_seeker);
-                        
-  const { id } = useLocalSearchParams(); // gets [id] from /seeker/[id]
+  const navigation = useNavigation();
+  const { user } = useContext(AuthContext);
+  const { id } = useLocalSearchParams();
   const router = useRouter();
 
+  // ── Role checks ────────────────────────────────────────────────────────────
+  const userRoleId = parseInt(user?.role_id ?? user?.role?.id ?? 0, 10);
+  const isPratishthanYuva        = userRoleId === 8;
+  const isPratishthanCallingTeam = userRoleId === 9 || userRoleId === 10;
+  const canEditChecklist  = user?.permissions?.includes(2);
+
   const copyToClipboard = async (number) => {
-      if (!number) return;
-      
-      // Use the Expo native method
-      await Clipboard.setStringAsync(number);
-      
-      Alert.alert(
-          'Copied', 
-          'Mobile number copied to clipboard', 
-          [{ text: 'OK' }], 
-          { cancelable: true }
-      );
+    if (!number) return;
+    await Clipboard.setStringAsync(number);
+    Alert.alert('Copied', 'Mobile number copied to clipboard', [{ text: 'OK' }], { cancelable: true });
   };
 
-  // Helper function to fetch the seeker data
   const fetchSeeker = async () => {
     setLoading(true);
     try {
       const response = await api.get(`/seekers/${id}`);
-      console.log(response.data);
-
-      setSeeker(response.data);        
+      setSeeker(response.data);
     } catch (error) {
       console.error("Error fetching seeker:", error.message);
     } finally {
@@ -106,32 +137,33 @@ export default function SeekerProfileScreen() {
     }
   };
 
-  // 🚀 FIX: Use useFocusEffect instead of useEffect
-  // This hook runs every time the screen comes into focus (initial load and navigating back)
   useFocusEffect(
-    // Wrap the fetch call in useCallback to prevent infinite re-renders
     useCallback(() => {
       fetchSeeker();
-      
-      // Return an optional cleanup function
-      return () => {
-        // Any cleanup logic goes here
-      };
-    }, [id]) // Re-run if ID changes
+      return () => {};
+    }, [id])
   );
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        // ✨ Ek wrapper tag (Fragment) add kiya gaya hai
         <>
           {user?.permissions?.includes(17) && (
             <View style={{ flexDirection: "row", alignItems: "center", marginRight: 15 }}>
-              {/* ✏️ Edit Button */}
               <TouchableOpacity
                 onPress={() => router.push(`/seeker/edit/${id}`)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#007AFF",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  gap: 5,
+                }}
               >
-                <Ionicons name="create-outline" size={24} color="#007AFF" />
+                <Ionicons name="create-outline" size={16} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Edit</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -139,19 +171,59 @@ export default function SeekerProfileScreen() {
       ),
       title: "Seeker Details",
     });
-  }, [navigation, id, router, user?.permissions]); // Permissions ko dependency mein rakhein
+  }, [navigation, id, router, user?.permissions]);
 
-  // Helper function for date formatting
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
+      day: "2-digit", month: "short", year: "numeric",
     });
   };
-  
-  // Conditionally render based on loading/data status
+
+  // ── Confirmation + Save for "Not Interested" ────────────────────────────────
+  const handleNotInterestedPress = () => {
+    const isCurrentlyInterested = seeker.interested_in_followup;
+
+    // If already marked as Not Interested, confirm toggling back
+    const title = isCurrentlyInterested
+      ? "Mark as Not Interested?"
+      : "Mark as Interested?";
+
+    const message = isCurrentlyInterested
+      ? `Are you sure you want to mark ${seeker.first_name} ${seeker.last_name} as NOT interested in Sahajayoga & follow-up?`
+      : `Are you sure you want to mark ${seeker.first_name} ${seeker.last_name} as INTERESTED in Sahajayoga & follow-up?`;
+
+    Alert.alert(
+      title,
+      message,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes, Confirm",
+          style: isCurrentlyInterested ? "destructive" : "default",
+          onPress: () => saveInterestedStatus(!isCurrentlyInterested),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const saveInterestedStatus = async (newValue) => {
+    setSavingInterested(true);
+    try {
+      await api.put(`/seekers/${id}`, { interested_in_followup: newValue });
+      setSeeker(prev => ({ ...prev, interested_in_followup: newValue }));
+    } catch (e) {
+      Alert.alert("Error", "Could not update. Please try again.");
+    } finally {
+      setSavingInterested(false);
+    }
+  };
+
+  // ── Loading / Error states ──────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -172,241 +244,217 @@ export default function SeekerProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F9F9F9" }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Main Profile Card ─────────────────────────────────────────────── */}
+        <Text style={styles.title}>{seeker.first_name} {seeker.last_name}</Text>
 
-        <ScrollView 
-          style={styles.container} 
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
-            {/* --- Main Profile Section --- */}
-            <Text style={styles.title}>{seeker.first_name} {seeker.last_name}</Text>
+        <View style={styles.card}>
+          <View style={styles.containerRow}>
+            <ProfileDetail
+              iconName="business-outline"
+              label="Type"
+              value={seeker.type === 1 ? "Pratishthan Seeker" : "Public Program Seeker"}
+            />
+          </View>
 
-            <View style={styles.card}>
-            {/* <TouchableOpacity 
-                // Add the onPress handler here, passing the mobile number
-                onPress={() => handleCall(seeker.mobile)}
-                // Optional: Add a style to make it look clickable, if needed
-                style={{ paddingVertical: 5 }} 
-            >
-                <ProfileDetail 
-                    iconName="call-outline" 
-                    label="Mobile" 
-                    value={seeker.mobile} 
-                    valueStyle={styles.mobileNumber}
-                />
-            </TouchableOpacity> */}
-
-            <View style={styles.containerRow}>
-                {/* Left Side: Click to Call */}
-                <TouchableOpacity 
-                    onPress={() => handleCall(seeker.mobile)}
-                    style={styles.clickableArea}
-                >
-                    <ProfileDetail 
-                        iconName="call-outline" 
-                        label="Mobile" 
-                        value={seeker.mobile} 
-                        valueStyle={styles.mobileNumber}
-                    />
-                </TouchableOpacity>
-
-                {/* Right Side: Copy Button */}
-                <TouchableOpacity 
-                    onPress={() => copyToClipboard(seeker.mobile)}
-                    style={styles.copyButton}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Makes small icon easy to press
-                >
-                    <Ionicons name="copy-outline" size={20} color="#666" />
-                </TouchableOpacity>
-            </View>
-              
-              <View style={styles.separator} />
-
-              <ProfileDetail 
-                iconName="body-outline" 
-                label="Gender" 
-                value={seeker.sex || "N/A"} 
+          <View style={styles.containerRow}>
+            {seeker.type === 2 && (
+              <ProfileDetail
+                iconName="map-outline"
+                label="Location of Public Program"
+                value={seeker.address || "N/A"}
               />
-              <ProfileDetail 
-                iconName="calendar-outline" 
-                label="Age range" 
-                value={seeker.age_range+" (years)" || "N/A"} 
-              />
-              <ProfileDetail 
-                iconName="location-outline" 
-                label="Area" 
-                value={seeker.area?.name  || "N/A"} 
-              />
-              <ProfileDetail 
-                iconName="map-outline" 
-                label="Zone" 
-                value={seeker.zone?.name || "N/A"} 
-              />
-              <ProfileDetail 
-                iconName="business-outline" 
-                label="Type" 
-                value={seeker.type === 1 ? "Pratishthan Seeker" : "Public Program Seeker"} 
-              />
-              <ProfileDetail 
-                iconName="briefcase-outline" 
-                label="Occupation" 
-                value={seeker.occupation || "N/A"} 
-              />
-              
-              <View style={styles.separator} />
-
-              <ProfileDetail 
-                iconName="person-circle-outline" 
-                label="Sahajayogi Responsible" 
-                value={seeker.moderator ? seeker.moderator.name : 'Mentor not assigned'} 
-              />
-              
-              <ProfileDetail 
-                iconName="person-outline" 
-                label="Caller Assigned" 
-                value={seeker.caller ? seeker.caller.name : 'Caller not assigned'} 
-                subValue={seeker.caller && seeker.called_at 
-                  ? `Called on ${new Date(seeker.called_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` 
-                  : null}
-              />
-
-              <ProfileDetail 
-                iconName="reader-outline" 
-                label="Comment" 
-                value={seeker.comment || "N/A"} 
-              />
-              
-              <View style={styles.dateInfo}>
-                <Text style={styles.dateText}>
-                  Created Date: {formatDate(seeker.created_at)}
-                </Text>
-                <Text style={styles.dateText}>
-                  - By: {seeker.creator?.name} ({seeker.creator?.zone?.name}) 
-                </Text>
-                <Text style={styles.dateText}>
-                  Last Updated: {formatDate(seeker.updated_at)}
-                </Text>
-                <Text style={styles.dateText}>
-                  - By: {seeker.lastupdator?.name} ({seeker.lastupdator?.role?.name})
-                </Text>
-              </View>
-              
-            </View>
-
-            {/* --- Follow-up & Checklist Button --- */}
-            <View style={styles.followUpContainer}>
-                <Text style={styles.followUpLabel}>Interested in Sahajayoga & followup:</Text>
-                <StatusBadge isTrue={seeker.interested_in_followup} />
-            </View>
-
-            {user?.permissions?.includes(2) && (
-                <TouchableOpacity
-                    style={styles.editChecklistButton}
-                    onPress={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}`)}
-                >
-                    <MaterialIcons name="playlist-add-check" size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.editChecklistText}>Edit Checklist</Text>
-                </TouchableOpacity>
             )}
-           
-            {/* --- Checklist - Pratishthan Sessions --- */}
-            <Text style={styles.sectionHeader}>🧘 Pratishthan Session Updates (Yuva for Pratishthan)</Text>
-            <Text style={styles.dateText}>(You can add comments after each session)</Text>
-            
+          </View>
 
+          <View style={styles.separator} />
+
+          {/* Mobile Row */}
+          <View style={styles.mobileRow}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => handleCall(seeker.mobile)}>
+              <ProfileDetail iconName="call-outline" label="Mobile" value={seeker.mobile} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => copyToClipboard(seeker.mobile)}
+              style={styles.copyButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="copy-outline" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <ProfileDetail iconName="body-outline" label="Gender" value={seeker.sex || "N/A"} />
+          <ProfileDetail iconName="calendar-outline" label="Age range" value={seeker.age_range + " (years)" || "N/A"} />
+          <ProfileDetail iconName="location-outline" label="Area of Residence" value={seeker.area?.name || "N/A"} />
+          <ProfileDetail iconName="map-outline" label="Zone" value={seeker.zone?.name || "N/A"} />
+
+          <View style={styles.separator} />
+
+          <ProfileDetail
+            iconName="person-outline"
+            label="Caller Name (Calling Team)"
+            value={seeker.caller ? seeker.caller.name : 'Caller not assigned'}
+            subValue={seeker.caller && seeker.called_at
+              ? `Called on ${new Date(seeker.called_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+              : null}
+          />
+          <ProfileDetail
+            iconName="reader-outline"
+            label="Comments by Calling Team"
+            value={seeker.comment || "N/A"}
+          />
+
+          <View style={styles.separator} />
+
+          <ProfileDetail
+            iconName="person-circle-outline"
+            label="Mentor Name"
+            value={seeker.moderator ? seeker.moderator.name : 'Mentor not assigned'}
+          />
+
+          <View style={styles.separator} />
+
+          <View style={styles.dateInfo}>
+            <Text style={styles.dateText}>Created Date: {formatDate(seeker.created_at)}</Text>
+            <Text style={styles.dateText}>- By: {seeker.creator?.name} ({seeker.creator?.zone?.name})</Text>
+            <Text style={styles.dateText}>Last Updated: {formatDate(seeker.updated_at)}</Text>
+            <Text style={styles.dateText}>- By: {seeker.lastupdator?.name} ({seeker.lastupdator?.role?.name})</Text>
+          </View>
+        </View>
+
+        {/* Pratishthan Yuva / Calling Team: only see sessions */}
+        {(isPratishthanYuva || isPratishthanCallingTeam) && seeker.type === 1 && (
+          <>
+            <SectionHeader
+              title="🧘 Pratishthan Session Updates"
+              subtitle="(Reminder call status is shown after each attended session)"
+              canEdit={canEditChecklist}
+              onEdit={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}&module=sessions`)}
+            />
             <View style={styles.checklistCard}>
-                <ChecklistItem 
-                    label="Attended 1st Session" 
-                    isTrue={checklist.attended_session_1} 
-                    comment={checklist.session_1_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 2nd Session" 
-                    isTrue={checklist.attended_session_2} 
-                    comment={checklist.session_2_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 3rd Session" 
-                    isTrue={checklist.attended_session_3} 
-                    comment={checklist.session_3_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 4th Session" 
-                    isTrue={checklist.attended_session_4} 
-                    comment={checklist.session_4_comments} 
-                />
+              <ChecklistItem label="Attended 1st Session" isTrue={checklist.attended_session_1} />
+              <ReminderCallNote made={checklist.session_1_call_made} nextOrdinal={getOrdinal(2)} />
+              <ChecklistItem label="Attended 2nd Session" isTrue={checklist.attended_session_2} />
+              <ReminderCallNote made={checklist.session_2_call_made} nextOrdinal={getOrdinal(3)} />
+              <ChecklistItem label="Attended 3rd Session" isTrue={checklist.attended_session_3} />
+              <ReminderCallNote made={checklist.session_3_call_made} nextOrdinal={getOrdinal(4)} />
+              <ChecklistItem label="Attended 4th Session" isTrue={checklist.attended_session_4} />
             </View>
+          </>
+        )}
 
-            {/* --- Checklist - General & Monthly Follow-up --- */}
-            <Text style={styles.sectionHeader}>✅ General Follow-up (Mentors)</Text>
+        {/* Mentor / Admin / Zonal Leader: see all modules */}
+        {!isPratishthanYuva && !isPratishthanCallingTeam && (
+          <>
+            {/* Pratishthan Sessions — view only */}
+            {seeker.type === 1 && (
+              <>
+                <SectionHeader
+                  title="🧘 Pratishthan Session Updates"
+                  subtitle="(Reminder call status is shown after each attended session)"
+                  canEdit={false}
+                />
+                <View style={styles.checklistCard}>
+                  <ChecklistItem label="Attended 1st Session" isTrue={checklist.attended_session_1} />
+                  <ReminderCallNote made={checklist.session_1_call_made} nextOrdinal={getOrdinal(2)} />
+                  <ChecklistItem label="Attended 2nd Session" isTrue={checklist.attended_session_2} />
+                  <ReminderCallNote made={checklist.session_2_call_made} nextOrdinal={getOrdinal(3)} />
+                  <ChecklistItem label="Attended 3rd Session" isTrue={checklist.attended_session_3} />
+                  <ReminderCallNote made={checklist.session_3_call_made} nextOrdinal={getOrdinal(4)} />
+                  <ChecklistItem label="Attended 4th Session" isTrue={checklist.attended_session_4} />
+                </View>
+              </>
+            )}
+
+            {/* Follow-up Guidelines */}
+            <SectionHeader
+              title="✅ Follow-up Checklist"
+              subtitle="(Please update below checklist time to time after discussions with the new seeker)"
+              canEdit={canEditChecklist}
+              onEdit={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}&module=followup`)}
+            />
             <View style={styles.checklistCardSecondary}>
-                <ChecklistItem 
-                    label="Feeling Vibrations" 
-                    isTrue={checklist.feeling_vibrations} 
-                />
-                <ChecklistItem 
-                    label="Meditating at Home" 
-                    isTrue={checklist.meditating_at_home} 
-                />
-                <ChecklistItem 
-                    label="Footsoak at Home" 
-                    isTrue={checklist.footsoak_at_home} 
-                />
-                <ChecklistItem 
-                    label="Shri Mataji's Photo at Home" 
-                    isTrue={checklist.photo_at_home} 
-                />
-                <ChecklistItem 
-                    label="Check Puja arranged at Home" 
-                    isTrue={checklist.alter_check_at_home} 
-                />
-                <ChecklistItem 
-                    label="Attending Center" 
-                    isTrue={checklist.attended_centres} 
-                />
-                <ChecklistItem 
-                    label="Attended Seminar" 
-                    isTrue={checklist.attended_seminar} 
-                />
-                <ChecklistItem 
-                    label="Attended Puja" 
-                    isTrue={checklist.attended_puja} 
-                />
+              <ChecklistItem label="Is the seeker Feeling Vibrations?" isTrue={checklist.feeling_vibrations} />
+              <ChecklistItem label="Is the seeker Meditating at Home?" isTrue={checklist.meditating_at_home} />
+              <ChecklistItem label="Is the seeker doing Footsoak at Home?" isTrue={checklist.footsoak_at_home} />
+              <ChecklistItem label="Does the seeker has Shri Mataji's Photo at Home?" isTrue={checklist.photo_at_home} />
+              <ChecklistItem label="Is the seeker Attending Center?" isTrue={checklist.attended_centres} />
+              <ChecklistItem label="Has the seeker Attended any Seminar" isTrue={checklist.attended_seminar} />
             </View>
 
-            <Text style={styles.sectionHeader}>🗓️ Monthly Follow-up (Mentors)</Text>
+            {/* Monthly Follow-up */}
+            <SectionHeader
+              title="🗓️ Monthly Follow-up Updates"
+              subtitle="(After every month please write your observations below)"
+              canEdit={canEditChecklist}
+              onEdit={() => router.push(`/seeker/checklist/${id}?name=${seeker.first_name}&module=monthly`)}
+            />
             <View style={styles.checklistCardSecondary}>
-                <ChecklistItem 
-                    label="Attended 1st Month" 
-                    isTrue={checklist.month_1} 
-                    comment={checklist.month_1_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 2nd Month" 
-                    isTrue={checklist.month_2} 
-                    comment={checklist.month_2_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 3rd Month" 
-                    isTrue={checklist.month_3} 
-                    comment={checklist.month_3_comments} 
-                />
-                <ChecklistItem 
-                    label="Attended 4th Month" 
-                    isTrue={checklist.month_4} 
-                    comment={checklist.month_4_comments} 
-                />
+              <ChecklistItem label="Review after 1st Month" isTrue={checklist.month_1} comment={checklist.month_1_comments} badgeType="month" />
+              <ChecklistItem label="Review after 2nd Month" isTrue={checklist.month_2} comment={checklist.month_2_comments} badgeType="month" />
+              <ChecklistItem label="Review after 3rd Month" isTrue={checklist.month_3} comment={checklist.month_3_comments} badgeType="month" />
+              <ChecklistItem label="Review after 4th Month" isTrue={checklist.month_4} comment={checklist.month_4_comments} badgeType="month" />
             </View>
 
-
-            <Text style={styles.sectionHeader}>🗓️ After 4th Months Review (Mentors)</Text>
+            {/* After 4th Month Review */}
+            <Text style={styles.sectionHeader}>🗓️ After 4th Months Review</Text>
             <View style={styles.checklistCardSecondary}>
-              <ChecklistItem 
-                      label="Has He/She become a Sahajayogi?" 
-                      isTrue={checklist.established} 
-                  />              
+              <ChecklistItem label="Has He/She become a Sahajayogi?" isTrue={checklist.established} />
             </View>
-        </ScrollView>
+
+            {/* Not Interested in Sahajayoga */}
+            <View style={styles.followUpContainer}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.followUpLabel}>Mark the seeker Not Interested in Sahajayoga</Text>
+                {!seeker.interested_in_followup ? (
+                  <View style={styles.notInterestedStatusRow}>
+                    <Ionicons name="close-circle" size={15} color="#C62828" />
+                    <Text style={styles.notInterestedStatusText}>
+                      Marked as Not Interested by Mentor
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.interestedStatusRow}>
+                    <Ionicons name="checkmark-circle" size={15} color="#2E7D32" />
+                    <Text style={styles.interestedStatusText}>
+                      Interested in Sahajayoga
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {canEditChecklist && (
+                <TouchableOpacity
+                  onPress={handleNotInterestedPress}
+                  disabled={savingInterested}
+                  style={[
+                    styles.notInterestedBtn,
+                    !seeker.interested_in_followup && styles.notInterestedBtnReverse,
+                    savingInterested && { opacity: 0.6 },
+                  ]}
+                >
+                  {savingInterested ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name={seeker.interested_in_followup ? "close-circle-outline" : "checkmark-circle-outline"}
+                        size={15}
+                        color="#fff"
+                      />
+                      <Text style={styles.notInterestedBtnText}>Submit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -415,16 +463,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 20, backgroundColor: "#F9F9F9" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
   noSeekerText: { fontSize: 18, color: "#555" },
-  
-  // --- Main Profile Card Styling ---
-  title: { 
-    fontSize: 28, 
-    fontWeight: "bold", 
-    color: "#1A237E", // Deep Indigo for prominence
-    marginBottom: 15 
-  },
+
+  title: { fontSize: 18, fontWeight: "bold", color: "#1A237E", marginBottom: 15 },
+
   card: {
-    backgroundColor: "#FFFFFF", // White card background
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     padding: 18,
     marginBottom: 20,
@@ -434,6 +477,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -441,92 +485,123 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EEE',
   },
-  detailContent: {
+  detailIcon: { marginRight: 15, width: 20 },
+  detailLabel: { fontSize: 14, fontWeight: "500", color: "#616161" },
+  detailValue: { fontSize: 16, color: "#212121", marginTop: 2, fontWeight: "600" },
+  detailSubValue: { fontSize: 11, color: '#9E9E9E', marginTop: 1 },
+  detailTextContainer: {},
+
+  separator: { height: 1, backgroundColor: '#E0E0E0', marginVertical: 10 },
+
+  dateInfo: {},
+  dateText: { fontSize: 13, color: "#757575", marginBottom: 4 },
+  dateText1: { fontSize: 15, color: "#757575", marginBottom: 4 },
+
+  containerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 5,
   },
-  detailIcon: {
-    marginRight: 15,
-    width: 20, // ensure consistent spacing for icon
-  },
-  detailLabel: { 
-    fontSize: 14, 
-    fontWeight: "500", 
-    color: "#616161" // Greyish label
-  },
-  detailValue: { 
-    fontSize: 16, 
-    color: "#212121", 
-    marginTop: 2, 
-    fontWeight: "600" 
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginVertical: 10,
-  },
-  dateInfo: {
-    marginTop: 15,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
-  },
-  dateText: { 
-    fontSize: 13, 
-    color: "#757575", 
-    marginBottom: 4 
-  },
+  mobileRow: { flexDirection: "row", alignItems: "center" },
+  copyButton: { paddingHorizontal: 12, paddingVertical: 8, justifyContent: "center", alignItems: "center" },
+  mobileNumber: { color: '#007AFF', textDecorationLine: 'underline' },
 
-  // --- Follow-up & Button Styling ---
+  // ── Follow-up Container ──────────────────────────────────────────────────────
   followUpContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 15,
-    backgroundColor: '#FFFDE7', // Light yellow for attention
+    backgroundColor: '#FFFDE7',
     borderRadius: 10,
-    marginBottom: 10,
+    marginBottom: 14,
     borderLeftWidth: 5,
     borderLeftColor: '#FFC107',
   },
-  followUpLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  editChecklistButton: {
-    backgroundColor: "#007AFF", // Standard iOS Blue
+  followUpLabel: { fontSize: 15, fontWeight: '600', color: '#333' },
+
+  // ── Not Interested Status Text ───────────────────────────────────────────────
+  notInterestedStatusRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    elevation: 3,
+    gap: 5,
+    marginTop: 6,
   },
-  editChecklistText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
+  notInterestedStatusText: {
+    fontSize: 13,
+    color: '#C62828',
+    fontWeight: '600',
+    fontStyle: 'italic',
+    flexShrink: 1,
+  },
+  interestedStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  interestedStatusText: {
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '600',
+    fontStyle: 'italic',
+    flexShrink: 1,
   },
 
-  // --- Checklist Styling ---
-  sectionHeader: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: "#424242", 
-    marginTop: 15, 
-    marginBottom: 10 
+  // ── Not Interested Button ────────────────────────────────────────────────────
+  notInterestedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D32F2F',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
+    minWidth: 80,
+    justifyContent: 'center',
   },
+  notInterestedBtnReverse: {
+    backgroundColor: '#388E3C',
+  },
+  notInterestedBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  // ── Section Header Row ───────────────────────────────────────────────────────
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 15,
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#424242",
+  },
+
+  // ── Small Edit Button ────────────────────────────────────────────────────────
+  smallEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+    marginLeft: 8,
+  },
+  smallEditText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  // ── Checklist Cards ──────────────────────────────────────────────────────────
   checklistCard: {
-    backgroundColor: "#E8F5E9", // Very light green for Pratishthan
+    backgroundColor: "#E8F5E9",
     borderRadius: 14,
     padding: 15,
     marginBottom: 15,
     elevation: 1,
   },
   checklistCardSecondary: {
-    backgroundColor: "#E3F2FD", // Very light blue for General/Monthly
+    backgroundColor: "#E3F2FD",
     borderRadius: 14,
     padding: 15,
     marginBottom: 15,
@@ -537,40 +612,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#CFD8DC',
   },
-  checklistRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  checklistLabel: {
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
-    flexShrink: 1,
-    marginRight: 10,
-  },
-  
-  // Badge Styling
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 15,
-    minWidth: 50,
-    alignItems: 'center',
-  },
-  statusYes: {
-    backgroundColor: "#4CAF50", // Green
-  },
-  statusNo: {
-    backgroundColor: "#F44336", // Red
-  },
-  badgeText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 12,
-  },
+  checklistRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  checklistLabel: { fontSize: 15, color: '#333', fontWeight: '500', flexShrink: 1, marginRight: 10 },
 
-  // Comment Styling
+  // ── Status Badge ─────────────────────────────────────────────────────────────
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 15, minWidth: 50, alignItems: 'center' },
+  statusYes: { backgroundColor: "#4CAF50" },
+  statusNo: { backgroundColor: "#F44336" },
+  statusPending: { backgroundColor: "#9E9E9E" },
+  badgeText: { color: "#fff", fontWeight: "bold", fontSize: 12 },
+
+  // ── Comment ──────────────────────────────────────────────────────────────────
   commentContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -581,39 +633,24 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     paddingLeft: 5,
   },
-  commentText: {
-    fontSize: 13,
-    color: '#555',
+  commentText: { fontSize: 13, color: '#555', marginLeft: 8, fontStyle: 'italic', flexShrink: 1 },
+
+  // ── Reminder Call Note ────────────────────────────────────────────────────────
+  reminderCallRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     marginLeft: 8,
-    fontStyle: 'italic',
-    flexShrink: 1,
+    marginBottom: 8,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 20,
   },
-  mobileNumber: {
-    color: '#007AFF',             // Use a link color (iOS blue)
-    textDecorationLine: 'underline', // Add the underline cue
+  reminderCallText: {
+    fontSize: 12,
+    color: '#1565C0',
     fontWeight: '600',
-},
-containerRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'between',
-  paddingVertical: 5,
-},
-clickableArea: {
-  flex: 1, // Takes up the majority of the row space
-},
-copyButton: {
-  paddingHorizontal: 10,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-mobileNumber: {
-  color: '#007AFF', // Makes it visually look like a clickable link
-  textDecorationLine: 'underline',
-},
-detailSubValue: {
-  fontSize: 11,
-  color: '#9E9E9E',
-  marginTop: 1,
-},
+  },
 });

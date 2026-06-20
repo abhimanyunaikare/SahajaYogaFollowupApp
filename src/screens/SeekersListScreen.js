@@ -735,7 +735,23 @@ export default function SeekersListScreen() {
 
               </View>
 
-              <Text style={styles.sectionTitle}>General Details</Text>
+
+              <Text style={styles.sectionTitle}>Pratishthan Session Filter</Text>
+
+              {/* Pratishthan Sessions (1st to 4th) */}
+              {[1, 2, 3, 4].map((n) => (
+                <View key={`session-${n}`} style={styles.optionGroup}>
+                    <Text style={styles.optionGroupLabel}>{`Attended ${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Session`}</Text>
+                    <View style={styles.optionRow}>
+                        <FilterOption label="Yes" isSelected={filters[`attended_session_${n}`] === true} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: true })} />
+                        <FilterOption label="No" isSelected={filters[`attended_session_${n}`] === false} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: false })} />
+                        <FilterOption label="All" isSelected={filters[`attended_session_${n}`] === null} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: null })} />
+                    </View>
+                </View>
+              ))}
+
+
+              <Text style={styles.sectionTitle}>Seeker Details</Text>
 
               {/* Mobile Input */}
               <TextInput
@@ -777,21 +793,7 @@ export default function SeekersListScreen() {
               </View>
 
 
-              <Text style={styles.sectionTitle}>Activity Checklist (Pratishthan)</Text>
-
-              {/* Pratishthan Sessions (1st to 4th) */}
-              {[1, 2, 3, 4].map((n) => (
-                <View key={`session-${n}`} style={styles.optionGroup}>
-                    <Text style={styles.optionGroupLabel}>{`Attended ${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Session`}</Text>
-                    <View style={styles.optionRow}>
-                        <FilterOption label="Yes" isSelected={filters[`attended_session_${n}`] === true} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: true })} />
-                        <FilterOption label="No" isSelected={filters[`attended_session_${n}`] === false} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: false })} />
-                        <FilterOption label="All" isSelected={filters[`attended_session_${n}`] === null} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: null })} />
-                    </View>
-                </View>
-              ))}
-
-              <Text style={styles.sectionTitle}>Activity Checklist (Mentor)</Text>
+              <Text style={styles.sectionTitle}>Mentor Activity  Filter</Text>
 
               {[1, 2, 3, 4].map((n) => (
                 <View key={`month-${n}`} style={styles.optionGroup}>

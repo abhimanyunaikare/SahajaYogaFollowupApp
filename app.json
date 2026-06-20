@@ -18,8 +18,8 @@
       "permissions": [
         "android.permission.CAMERA"
       ],
-      // "package": "com.sahajayoga.followup"
-      "package": "com.sahajayoga.dev"
+      "package": "com.sahajayoga.dev",
+      "versionCode": 1
     },
     "plugins": [
       [
@@ -51,6 +51,11 @@
         "NSCameraUsageDescription": "Sahajayoga app needs access to your camera to scan seeker lists."
       },
       "bundleIdentifier": "com.sahajayoga.followup"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6ebf176f-2856-4d16-8cc8-8c09d1abfaa0"
+      }
     }
   }
 }
