@@ -6,7 +6,7 @@ const ENV = "local";    // change to "production" when needed
 const BASE_URLS = {
   production: "http://sahajayoga-pune.org/api",
   dev: "http://sahajayoga-pune.org/dev/api",  // or dev.sahajayoga-pune.org/api
-  local: "http://192.168.128.131:8000/api",
+  local: "http://192.168.88.131:8000/api",
 };
 
 const api = axios.create({
