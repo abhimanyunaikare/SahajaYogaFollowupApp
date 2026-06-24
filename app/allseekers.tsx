@@ -24,8 +24,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 // --- Constants ---
 const PRIMARY_COLOR    = "#007AFF";
 const SUCCESS_COLOR    = "#4CAF50";
-const DANGER_COLOR     = "#F44336";
-const WARNING_COLOR    = "#f49836";
 const BACKGROUND_COLOR = "#F9F9F9";
 const CARD_BACKGROUND  = "#FFFFFF";
 const DEBOUNCE_DELAY   = 500;
@@ -48,19 +46,7 @@ const formatDate = (dateString) => {
   });
 };
 
-// --- Filter Option Component ---
-const FilterOption = ({ label, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[styles.filterOption, isSelected ? styles.selectedOption : styles.unselectedOption]}
-    onPress={onPress}
-  >
-    <Text style={[styles.filterOptionText, isSelected && styles.selectedOptionText]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
-// --- Status Badge Helper (mirrors SeekersListScreen) ---
+// --- Status Badge Helper ---
 const getStatusBadge = (item) => {
   if (item.interested_in_followup === false) {
     return { label: 'Not Interested', bg: '#FCEBEB', border: '#F09595', text: '#791F1F' };
@@ -77,7 +63,7 @@ const getStatusBadge = (item) => {
   return { label: 'New Seeker', bg: '#FAEEDA', border: '#EF9F27', text: '#633806' };
 };
 
-// --- Seeker Card (unified with SeekersListScreen, no checkbox/selection) ---
+// --- Seeker Card ---
 const SeekerCard = React.memo(({ item, onViewDetails }) => {
   const checklist = item.checklist || {};
 
@@ -148,7 +134,6 @@ const SeekerCard = React.memo(({ item, onViewDetails }) => {
                 {item.type === 1 ? 'Pratishthan Seeker' : 'PP Seeker'}
               </Text>
             </View>
-
             <View style={styles.progressSection}>
               <View style={styles.indicatorWrapper}>
                 <Text style={styles.indicatorLabel}>S:</Text>
@@ -169,7 +154,7 @@ const SeekerCard = React.memo(({ item, onViewDetails }) => {
 
 
 // --- Main Screen ---
-export default function MySeekersScreen() {
+export default function SeekersListScreen() {
   const [seekers, setSeekers]                 = useState([]);
   const [page, setPage]                       = useState(1);
   const [loading, setLoading]                 = useState(true);
@@ -209,6 +194,12 @@ export default function MySeekersScreen() {
 
   const debouncedSearchTerm = useDebounce(filters.name, DEBOUNCE_DELAY);
 
+  // Count active filters (exclude name since it has its own search bar)
+  const activeFilterCount = Object.entries(filters).filter(
+    ([key, v]) => key !== 'name' && v !== "" && v !== null
+  ).length;
+
+  // --- Date Picker helpers ---
   const showDatePicker = (mode) => { setCurrentMode(mode); setShowPicker(true); };
 
   const onDateChange = (event, selectedDate) => {
@@ -217,7 +208,7 @@ export default function MySeekersScreen() {
       const y = selectedDate.getFullYear();
       const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const d = String(selectedDate.getDate()).padStart(2, '0');
-      setFilters({ ...filters, [currentMode]: `${y}-${m}-${d}` });
+      setFilters(prev => ({ ...prev, [currentMode]: `${y}-${m}-${d}` }));
     }
   };
 
@@ -226,8 +217,6 @@ export default function MySeekersScreen() {
     return ds ? new Date(ds) : new Date();
   };
 
-  // ── Core fetch — passes my_seekers=1 so backend returns only
-  //    seekers where caller_id OR moderator_id === user.id
   const fetchSeekers = async (filterParams = {}, pageNumber = 1, isRefreshing = false) => {
     if (loading && !isRefreshing && pageNumber !== 1) return;
 
@@ -236,10 +225,9 @@ export default function MySeekersScreen() {
       setLoading(true);
 
       const contextParams = {
-        role_id:    role,
-        id:         user.id,
-        zone_id:    user.zone_id,
-        my_seekers: 1,
+        role_id: role,
+        id:      user.id,
+        zone_id: user.zone_id,
       };
 
       const merged = { ...filterParams, ...contextParams };
@@ -249,7 +237,7 @@ export default function MySeekersScreen() {
         .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
         .join("&");
 
-      const response = await api.get(`/seekers?${queryString}&page=${pageNumber}`);
+      const response = await api.get(`/seekers/all?${queryString}&page=${pageNumber}`);
       const data       = response.data.data || [];
       const isLastPage = response.data.current_page >= response.data.last_page;
 
@@ -260,7 +248,7 @@ export default function MySeekersScreen() {
       setPage(pageNumber);
       setCurrentFilters(filterParams);
     } catch (error) {
-      console.error("Error fetching my seekers:", error.message);
+      console.error("Error fetching seekers:", error.message);
     } finally {
       setLoading(false);
       setInitialLoading(false);
@@ -334,6 +322,7 @@ export default function MySeekersScreen() {
     setFilters(blank);
     setActiveTypeTab("all");
     setIsSearchVisible(false);
+    setFilterVisible(false);
     fetchSeekers(blank, 1, true);
   };
 
@@ -370,6 +359,11 @@ export default function MySeekersScreen() {
       <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)}>
         <Ionicons name="filter" size={18} color="#fff" />
         <Text style={styles.filterText}>Filter</Text>
+        {activeFilterCount > 0 && (
+          <View style={styles.filterBadge}>
+            <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -378,7 +372,7 @@ export default function MySeekersScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "My Seekers",
+          title: "All Seekers",
           headerRight: renderHeaderRight,
           headerLeft: renderHomeButton,
           headerStyle: { backgroundColor: CARD_BACKGROUND },
@@ -452,7 +446,13 @@ export default function MySeekersScreen() {
           }
           contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 50 }}
           ListEmptyComponent={
-            !loading && <Text style={styles.emptyText}>No seekers assigned to you yet.</Text>
+            !loading && (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="people-outline" size={60} color="#8E8E93" />
+                <Text style={styles.emptyTitle}>No Seekers Found</Text>
+                <Text style={styles.emptyText}>No seekers match the selected filters.</Text>
+              </View>
+            )
           }
         />
 
@@ -462,7 +462,14 @@ export default function MySeekersScreen() {
             <View style={styles.modalContent}>
 
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Filter Seekers</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.modalTitle}>Filter Seekers</Text>
+                  {activeFilterCount > 0 && (
+                    <View style={styles.filterActiveBadge}>
+                      <Text style={styles.filterActiveBadgeText}>{activeFilterCount} active</Text>
+                    </View>
+                  )}
+                </View>
                 <TouchableOpacity onPress={() => setFilterVisible(false)} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color="#555" />
                 </TouchableOpacity>
@@ -474,96 +481,156 @@ export default function MySeekersScreen() {
                 <Text style={styles.sectionTitle}>Date Range</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <TouchableOpacity
-                    style={[styles.input, { flex: 0.48 }]}
+                    style={[styles.dateButton, { flex: 0.48 }]}
                     onPress={() => showDatePicker('from_date')}
                   >
-                    <Text style={{ color: filters.from_date ? '#000' : '#A0A0A0' }}>
+                    <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 6 }} />
+                    <Text style={{ color: filters.from_date ? '#000' : '#A0A0A0', fontSize: 14, flex: 1 }}>
                       {filters.from_date || "From Date"}
                     </Text>
+                    {filters.from_date ? (
+                      <TouchableOpacity onPress={() => setFilters(p => ({ ...p, from_date: "" }))}>
+                        <Ionicons name="close-circle" size={16} color="#A0A0A0" />
+                      </TouchableOpacity>
+                    ) : null}
                   </TouchableOpacity>
+
                   <TouchableOpacity
-                    style={[styles.input, { flex: 0.48 }]}
+                    style={[styles.dateButton, { flex: 0.48 }]}
                     onPress={() => showDatePicker('to_date')}
                   >
-                    <Text style={{ color: filters.to_date ? '#000' : '#A0A0A0' }}>
+                    <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 6 }} />
+                    <Text style={{ color: filters.to_date ? '#000' : '#A0A0A0', fontSize: 14, flex: 1 }}>
                       {filters.to_date || "To Date"}
                     </Text>
+                    {filters.to_date ? (
+                      <TouchableOpacity onPress={() => setFilters(p => ({ ...p, to_date: "" }))}>
+                        <Ionicons name="close-circle" size={16} color="#A0A0A0" />
+                      </TouchableOpacity>
+                    ) : null}
                   </TouchableOpacity>
                 </View>
 
-                {/* General */}
-                <Text style={styles.sectionTitle}>General Details</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Mobile Number"
-                  placeholderTextColor="#A0A0A0"
-                  keyboardType="phone-pad"
-                  value={filters.mobile}
-                  onChangeText={(t) => setFilters({ ...filters, mobile: t })}
-                />
+                {/* Search */}
+                <Text style={styles.sectionTitle}>Search</Text>
+                <View style={styles.fInlineRow}>
+                  <Ionicons name="call-outline" size={16} color="#6B7280" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.filterTextInput}
+                    placeholder="Search by mobile..."
+                    placeholderTextColor="#A0A0A0"
+                    value={filters.mobile}
+                    onChangeText={(t) => setFilters(p => ({ ...p, mobile: t }))}
+                    keyboardType="phone-pad"
+                  />
+                  {filters.mobile.length > 0 && (
+                    <TouchableOpacity onPress={() => setFilters(p => ({ ...p, mobile: "" }))}>
+                      <Ionicons name="close-circle" size={16} color="#A0A0A0" />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
+                {/* Zone + Type */}
+                <Text style={styles.sectionTitle}>Seeker Details</Text>
                 <View style={styles.pickerWrapper}>
                   <Picker
                     selectedValue={filters.zone_id}
-                    onValueChange={(v) => setFilters({ ...filters, zone_id: v })}
+                    onValueChange={(v) => setFilters(p => ({ ...p, zone_id: v }))}
                     style={styles.picker}
                     itemStyle={styles.pickerItem}
                   >
-                    <Picker.Item label="Select Zone" value="" color="#A0A0A0" />
+                    <Picker.Item label="All Zones" value="" color="#A0A0A0" />
                     {zones.map((z) => (
                       <Picker.Item key={z.id} label={z.name} value={z.id} />
                     ))}
                   </Picker>
                 </View>
 
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={filters.type}
-                    onValueChange={(v) => setFilters({ ...filters, type: v })}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    <Picker.Item label="Select Type" value="" color="#A0A0A0" />
-                    <Picker.Item label="Pratishthan" value="1" />
-                    <Picker.Item label="Public"      value="2" />
-                  </Picker>
+                <View style={styles.fInlineRow}>
+                  <Text style={styles.fInlineLabel}>Type</Text>
+                  <View style={styles.fToggleGroup}>
+                    {[
+                      { label: "All",         value: "" },
+                      { label: "Pratishthan", value: "1" },
+                      { label: "Public",      value: "2" },
+                    ].map((opt) => (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.fToggleBtn, filters.type === opt.value && styles.fToggleBtnActive]}
+                        onPress={() => setFilters(p => ({ ...p, type: opt.value }))}
+                      >
+                        <Text style={[styles.fToggleBtnText, filters.type === opt.value && styles.fToggleBtnTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
 
-                {/* Sessions */}
-                <Text style={styles.sectionTitle}>Activity Checklist (Pratishthan)</Text>
-                {[1, 2, 3, 4].map((n) => (
-                  <View key={`session-${n}`} style={styles.optionGroup}>
-                    <Text style={styles.optionGroupLabel}>
-                      {`Attended ${n}${n===1?'st':n===2?'nd':n===3?'rd':'th'} Session`}
-                    </Text>
-                    <View style={styles.optionRow}>
-                      <FilterOption label="Yes" isSelected={filters[`attended_session_${n}`] === true}  onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: true  })} />
-                      <FilterOption label="No"  isSelected={filters[`attended_session_${n}`] === false} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: false })} />
-                      <FilterOption label="All" isSelected={filters[`attended_session_${n}`] === null}  onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: null  })} />
-                    </View>
+                {/* Pratishthan Sessions */}
+                <Text style={styles.sectionTitle}>Pratishthan Session Filter</Text>
+                <View style={styles.fDotRow}>
+                  <Text style={styles.fDotRowLabel}>Sessions</Text>
+                  <View style={styles.fDotGroup}>
+                    {[1, 2, 3, 4].map((n) => {
+                      const key = `attended_session_${n}`;
+                      const isOn = filters[key] === true;
+                      return (
+                        <TouchableOpacity
+                          key={key}
+                          style={[styles.fDot, isOn && styles.fDotActiveBlue]}
+                          onPress={() => setFilters(p => ({ ...p, [key]: isOn ? null : true }))}
+                        >
+                          <Text style={[styles.fDotText, isOn && styles.fDotTextActiveBlue]}>{n}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ))}
+                  <Text style={styles.fDotHint}>tap to filter</Text>
+                </View>
 
-                {/* Monthly */}
-                <Text style={styles.sectionTitle}>Activity Checklist (Mentor)</Text>
-                {[1, 2, 3, 4].map((n) => (
-                  <View key={`month-${n}`} style={styles.optionGroup}>
-                    <Text style={styles.optionGroupLabel}>{`Month ${n} Follow-up`}</Text>
-                    <View style={styles.optionRow}>
-                      <FilterOption label="Done"    isSelected={filters[`month_${n}`] === true}  onPress={() => setFilters({ ...filters, [`month_${n}`]: true  })} />
-                      <FilterOption label="Pending" isSelected={filters[`month_${n}`] === false} onPress={() => setFilters({ ...filters, [`month_${n}`]: false })} />
-                      <FilterOption label="All"     isSelected={filters[`month_${n}`] === null}  onPress={() => setFilters({ ...filters, [`month_${n}`]: null  })} />
-                    </View>
+                {/* Monthly Follow-up */}
+                <Text style={styles.sectionTitle}>Mentor Activity Filter</Text>
+                <View style={styles.fDotRow}>
+                  <Text style={styles.fDotRowLabel}>Months</Text>
+                  <View style={styles.fDotGroup}>
+                    {[1, 2, 3, 4].map((n) => {
+                      const key = `month_${n}`;
+                      const isOn = filters[key] === true;
+                      return (
+                        <TouchableOpacity
+                          key={key}
+                          style={[styles.fDot, isOn && styles.fDotActiveGreen]}
+                          onPress={() => setFilters(p => ({ ...p, [key]: isOn ? null : true }))}
+                        >
+                          <Text style={[styles.fDotText, isOn && styles.fDotTextActiveGreen]}>{n}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ))}
+                  <Text style={styles.fDotHint}>tap to filter</Text>
+                </View>
 
-                {/* Attended Centre */}
-                <View style={styles.optionGroup}>
-                  <Text style={styles.optionGroupLabel}>Attended Centre</Text>
-                  <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.attended_centres === true}  onPress={() => setFilters({ ...filters, attended_centres: true  })} />
-                    <FilterOption label="No"  isSelected={filters.attended_centres === false} onPress={() => setFilters({ ...filters, attended_centres: false })} />
-                    <FilterOption label="All" isSelected={filters.attended_centres === null}  onPress={() => setFilters({ ...filters, attended_centres: null  })} />
+                {/* Activity */}
+                <Text style={styles.sectionTitle}>Activity</Text>
+                <View style={styles.fInlineRow}>
+                  <Text style={styles.fInlineLabel}>Attended Centre</Text>
+                  <View style={styles.fToggleGroup}>
+                    {[
+                      { label: "All", value: null  },
+                      { label: "Yes", value: true  },
+                      { label: "No",  value: false },
+                    ].map((opt) => (
+                      <TouchableOpacity
+                        key={String(opt.value)}
+                        style={[styles.fToggleBtn, filters.attended_centres === opt.value && styles.fToggleBtnActive]}
+                        onPress={() => setFilters(p => ({ ...p, attended_centres: opt.value }))}
+                      >
+                        <Text style={[styles.fToggleBtnText, filters.attended_centres === opt.value && styles.fToggleBtnTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </View>
 
@@ -600,18 +667,24 @@ export default function MySeekersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: BACKGROUND_COLOR },
-  loader:     { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: BACKGROUND_COLOR },
-  emptyText:  { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#6B7280' },
+  container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
+  loader:    { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: BACKGROUND_COLOR },
+
+  // --- Empty State ---
+  emptyContainer: { padding: 40, alignItems: "center", marginTop: 60 },
+  emptyTitle:     { marginTop: 12, fontSize: 17, fontWeight: "700", color: "#1C1C1E" },
+  emptyText:      { marginTop: 6, fontSize: 14, color: "#8E8E93", textAlign: "center" },
 
   // --- Header ---
   headerRightContainer: { flexDirection: 'row', alignItems: 'center', marginRight: -10 },
-  headerIcon:   { padding: 10, marginRight: 10 },
+  headerIcon: { padding: 10, marginRight: 10 },
   filterButton: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: PRIMARY_COLOR, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8,
   },
-  filterText: { color: "#fff", marginLeft: 5, fontWeight: "600", fontSize: 14 },
+  filterText:      { color: "#fff", marginLeft: 5, fontWeight: "600", fontSize: 14 },
+  filterBadge:     { backgroundColor: "#fff", borderRadius: 8, marginLeft: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  filterBadgeText: { color: PRIMARY_COLOR, fontSize: 11, fontWeight: "700" },
   homeButton: { marginLeft: 10, padding: 5, paddingRight: 20 },
 
   // --- Search Bar ---
@@ -638,7 +711,7 @@ const styles = StyleSheet.create({
   tabText:       { fontSize: 13, fontWeight: "500", color: "#00BCD4" },
   activeTabText: { color: PRIMARY_COLOR, fontWeight: "700" },
 
-  // --- Card (matches SeekersListScreen exactly) ---
+  // --- Card ---
   card: {
     backgroundColor: CARD_BACKGROUND, borderRadius: 12,
     marginHorizontal: 5, marginVertical: 4, padding: 12,
@@ -656,7 +729,6 @@ const styles = StyleSheet.create({
   locationText: { fontSize: 13, color: "#4B5563" },
   mobileText:   { fontSize: 13, color: "#4B5563" },
 
-  // Type badge (bottom-left)
   typeBadgeContainer: {
     marginTop: 4, alignSelf: 'flex-start',
     backgroundColor: '#F0F9FF', paddingHorizontal: 6, paddingVertical: 2,
@@ -664,14 +736,9 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: { fontSize: 11, fontWeight: '600', color: '#1E40AF' },
 
-  // Status badge (top-right, mirrors SeekersListScreen)
-  typeBadgeStatusContainer: {
-    borderWidth: 1, borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2,
-  },
-  typeBadgeStatusText: { fontSize: 11, fontWeight: '600' },
+  typeBadgeStatusContainer: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  typeBadgeStatusText:      { fontSize: 11, fontWeight: '600' },
 
-  // Progress dots row
   bottomBadgeContainer: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', marginTop: 8,
@@ -709,28 +776,12 @@ const styles = StyleSheet.create({
     fontSize: 16, fontWeight: "700", marginTop: 20, marginBottom: 10,
     color: PRIMARY_COLOR, borderBottomWidth: 1, borderBottomColor: "#D1E3FF", paddingBottom: 5,
   },
-  input: {
-    borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8,
-    padding: 12, marginBottom: 15, fontSize: 15, backgroundColor: '#F9FAFB',
-  },
   pickerWrapper: {
     borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8,
     marginBottom: 15, overflow: 'hidden', backgroundColor: '#F9FAFB',
   },
   picker:     { height: 55, width: '100%' },
   pickerItem: { fontSize: 15 },
-
-  optionGroup:      { marginBottom: 15 },
-  optionGroupLabel: { fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 8 },
-  optionRow:        { flexDirection: "row", flexWrap: 'wrap' },
-  filterOption: {
-    paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20,
-    marginRight: 10, marginBottom: 8, borderWidth: 1,
-  },
-  unselectedOption:   { backgroundColor: "#F3F4F6", borderColor: "#D1D5DB" },
-  selectedOption:     { backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR },
-  filterOptionText:   { color: "#374151", fontWeight: "500" },
-  selectedOptionText: { color: "#fff" },
 
   safeAreaFooter: {},
   modalFooter: {
@@ -747,4 +798,43 @@ const styles = StyleSheet.create({
     width: '60%', alignItems: 'center',
   },
   applyButtonText: { color: "#fff", fontWeight: '700' },
+
+  // --- Filter active badge (modal header) ---
+  filterActiveBadge:     { backgroundColor: "#185FA5", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  filterActiveBadgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+
+  // --- Date buttons ---
+  dateButton: {
+    flexDirection: "row", alignItems: "center",
+    borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8,
+    padding: 11, marginBottom: 15, backgroundColor: "#F9FAFB",
+  },
+
+  // --- Inline filter rows ---
+  fInlineRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB",
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10,
+  },
+  fInlineLabel:    { fontSize: 14, color: "#1F2937", flex: 1 },
+  filterTextInput: { flex: 1, fontSize: 14, color: '#1C1C1E', paddingVertical: 0 },
+
+  // --- Toggle buttons ---
+  fToggleGroup:         { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 8, overflow: "hidden", borderWidth: 0.5, borderColor: "#D1D5DB" },
+  fToggleBtn:           { paddingVertical: 6, paddingHorizontal: 10 },
+  fToggleBtnActive:     { backgroundColor: "#007AFF" },
+  fToggleBtnText:       { fontSize: 12, color: "#6B7280" },
+  fToggleBtnTextActive: { color: "#fff", fontWeight: "700" },
+
+  // --- Dot selectors ---
+  fDotRow:             { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, padding: 12, marginBottom: 10 },
+  fDotRowLabel:        { fontSize: 13, color: "#6B7280", width: 58 },
+  fDotGroup:           { flexDirection: "row", gap: 6, flex: 1 },
+  fDot:                { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6", borderWidth: 0.5, borderColor: "#D1D5DB" },
+  fDotActiveBlue:      { backgroundColor: "#007AFF", borderColor: "#005EC4" },
+  fDotActiveGreen:     { backgroundColor: "#34C759", borderColor: "#248A3D" },
+  fDotText:            { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
+  fDotTextActiveBlue:  { color: "#fff", fontWeight: "700" },
+  fDotTextActiveGreen: { color: "#fff", fontWeight: "700" },
+  fDotHint:            { fontSize: 11, color: "#9CA3AF" },
 });

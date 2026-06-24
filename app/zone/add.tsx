@@ -32,12 +32,12 @@ export default function AddZoneScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Role Name"
+        placeholder="Zone Name"
         value={form.name}
         onChangeText={(text) => setForm({ ...form, name: text })}
       />
 
-      <Button title="Save Role" onPress={handleSubmit} />
+      <Button title="Save Zone" onPress={handleSubmit} />
     </ScrollView>
   );
 }

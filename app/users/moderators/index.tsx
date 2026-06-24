@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useMemo } from "react";
 import { 
     View, 
     Text, 
@@ -8,7 +8,8 @@ import {
     ActivityIndicator, 
     Platform,
     Linking,
-    SafeAreaView
+    SafeAreaView,
+    TextInput,
 } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router"; 
 import api from "../../../src/api/apiClient.js"; 
@@ -28,11 +29,14 @@ export default function ZoneModeratorsScreen() {
     const { zoneId } = useLocalSearchParams(); 
     const [moderators, setModerators] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState("");
     const router = useRouter();
 
     const targetZoneId = zoneId || user?.zone_id;
     const roleId = user?.role_id;
     const effective_zone_name = user?.zone_name || 'Selected Zone';
+
+    
 
     useEffect(() => {
         if (!targetZoneId) {
@@ -51,6 +55,13 @@ export default function ZoneModeratorsScreen() {
         };
         fetchModerators();
     }, [targetZoneId]);
+
+    const filteredModerators = useMemo(() =>
+        moderators.filter(m =>
+            m.name?.toLowerCase().includes(search.toLowerCase())
+        ),
+        [moderators, search]
+    );
 
     const handleCall = (phoneNumber) => {
         if (phoneNumber) {
@@ -74,8 +85,27 @@ export default function ZoneModeratorsScreen() {
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ title: `${effective_zone_name} Mentors` }} />
             
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <Ionicons name="search-outline" size={18} color={SUBTLE_TEXT_COLOR} style={{ marginRight: 8 }} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search by name..."
+                    placeholderTextColor={SUBTLE_TEXT_COLOR}
+                    value={search}
+                    onChangeText={setSearch}
+                    clearButtonMode="while-editing"
+                    autoCorrect={false}
+                />
+                {search.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearch("")}>
+                        <Ionicons name="close-circle" size={18} color={SUBTLE_TEXT_COLOR} />
+                    </TouchableOpacity>
+                )}
+            </View>
+
             <FlatList
-                data={moderators}
+                data={filteredModerators}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
                 // 🚀 Bottom Padding Fix
@@ -194,5 +224,24 @@ const styles = StyleSheet.create({
     disabledCall: { backgroundColor: '#D1D1D6' },
 
     emptyContainer: { padding: 40, alignItems: 'center', marginTop: 50 },
-    emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR, textAlign: 'center' }
+    emptyText: { marginTop: 10, fontSize: 16, color: SUBTLE_TEXT_COLOR, textAlign: 'center' },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: ITEM_BACKGROUND,
+        borderRadius: 10,
+        margin: 12,
+        marginBottom: 4,
+        paddingHorizontal: 12,
+        paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        elevation: 2,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: TEXT_COLOR,
+    },
 });

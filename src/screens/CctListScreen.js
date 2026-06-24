@@ -61,7 +61,7 @@ export default function TeamMembersScreen() {
 
   return (
      <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: "Calling Team" }} />
+      <Stack.Screen options={{ title: "Public Program Calling Team" }} />
       
         <FlatList
           data={members}

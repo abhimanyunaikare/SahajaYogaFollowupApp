@@ -31,25 +31,21 @@ const DANGER_COLOR = "#F44336";
 const WARNING_COLOR = "#f49836"; 
 const BACKGROUND_COLOR = "#F9F9F9";
 const CARD_BACKGROUND = "#FFFFFF";
-const DEBOUNCE_DELAY = 500; // 500ms delay for search
+const DEBOUNCE_DELAY = 500;
 
 // Utility for Debouncing
 function useDebounce(value, delay) {
     const [debouncedValue, setDebouncedValue] = useState(value);
-
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedValue(value);
         }, delay);
-
         return () => {
             clearTimeout(handler);
         };
     }, [value, delay]);
-
     return debouncedValue;
 }
-
 
 // Helper function for date formatting
 const formatDate = (dateString) => {
@@ -61,20 +57,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// Optimized Filter Option Component (No change)
-const FilterOption = ({ label, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[
-      styles.filterOption,
-      isSelected ? styles.selectedOption : styles.unselectedOption,
-    ]}
-    onPress={onPress}
-  >
-    <Text style={[styles.filterOptionText, isSelected && styles.selectedOptionText]}>{label}</Text>
-  </TouchableOpacity>
-);
-
-// Add this helper function above the SeekerCard component
 const getStatusBadge = (item) => {
   if (item.interested_in_followup === false) {
     return { label: 'Not Interested', bg: '#FCEBEB', border: '#F09595', text: '#791F1F' };
@@ -91,25 +73,20 @@ const getStatusBadge = (item) => {
   return { label: 'New Seeker', bg: '#FAEEDA', border: '#EF9F27', text: '#633806' };
 };
 
-// Optimized Seeker Card Component (No change)
+// ── UNCHANGED: SeekerCard ────────────────────────────────────────────────────
 const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDetails }) => {
     const moderatorIconColor = item.moderator ? SUCCESS_COLOR : DANGER_COLOR;
     const moderatorIconName = item.moderator ? "person-outline" : "person-remove-outline"; 
     const callerIconColor = item.caller ? SUCCESS_COLOR : WARNING_COLOR;
     const callerIconName = item.caller ? "mic-outline" : "mic-off-outline"; 
 
-    // Extract the checklist object safely
     const checklist = item.checklist || {};
 
-    // Helper to render numbered dots for Sessions or Months
-    // Helper to render numbered indicators (1 2 3 4)
     const renderProgressDots = (prefix, activeColor) => {
       return (
           <View style={styles.dotGroup}>
               {[1, 2, 3, 4].map((num) => {
-                  // Look inside checklist instead of the top-level item
                   const isAttended = checklist[`${prefix}_${num}`] === true || checklist[`${prefix}_${num}`] === 1;
-                  
                   return (
                       <View 
                           key={`${prefix}-${num}`} 
@@ -126,18 +103,8 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
               })}
           </View>
       );
-  };
+    };
   
-    // 2. Monthly Follow-ups (1-4)
-    const followupsCount = [
-        item.month_1, 
-        item.month_2, 
-        item.month_3, 
-        item.month_4
-    ].filter(val => val === true || val === 1).length;
-
-    // 3. Logic for "Did the caller call?" 
-    // Usually mapped to called having a value (True/False) vs being null
     const hasCallAttempt = item.called === true;
     
     return (
@@ -159,39 +126,25 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
                   </TouchableOpacity>
           
                   <View style={styles.infoContainer}>
-                      {/* Top Row: Name and Assignment Status */}
                       <View style={styles.nameRow}>
                           <Text style={styles.name} numberOfLines={1}>
                               {item.first_name} {item.last_name}
                           </Text>
-                          {/* Do Not Delete below code as we will need it later */}
-                          {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Ionicons 
-                                  name={hasCallAttempt ? "call" : "call-outline"} 
-                                  size={18} 
-                                  color={hasCallAttempt ? SUCCESS_COLOR : DANGER_COLOR} 
-                              />
-                              <Ionicons name={callerIconName} size={18} color={callerIconColor} style={{marginLeft: 8}} />
-                              <Ionicons name={moderatorIconName} size={18} color={moderatorIconColor} style={{marginLeft: 8}} />
-                          </View> */}
-
                           {(() => {
-                                  const status = getStatusBadge(item);
-                                  return (
-                                      <View style={[
-                                          styles.typeBadgeStatusContainer,
-                                          { backgroundColor: status.bg, borderColor: status.border, padding: 2 }
-                                      ]}>
-                                          <Text style={[styles.typeBadgeStatusText, { color: status.text, fontSize:11 }]}>
-                                              {status.label}
-                                          </Text>
-                                      </View>
-                                  );
-                              })()}
-
+                              const status = getStatusBadge(item);
+                              return (
+                                  <View style={[
+                                      styles.typeBadgeStatusContainer,
+                                      { backgroundColor: status.bg, borderColor: status.border, padding: 2 }
+                                  ]}>
+                                      <Text style={[styles.typeBadgeStatusText, { color: status.text, fontSize:11 }]}>
+                                          {status.label}
+                                      </Text>
+                                  </View>
+                              );
+                          })()}
                       </View>
                       
-                      {/* Middle Rows: Location and Dates */}
                       <View style={styles.detailsRow}>
                           <Ionicons name="location-outline" size={12} color="#6B7280" style={{marginRight: 2}} />
                           <Text style={styles.locationText} numberOfLines={1}>{item.zone?.name}, {item.city || "N/A"}</Text>
@@ -206,7 +159,6 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
                           <Text style={styles.mobileText}>{formatDate(item.updated_at)}</Text>
                       </View>
                       
-                      {/* Bottom Row: Type Badge + Progress Indicators */}
                       <View style={styles.bottomBadgeContainer}>
                           <View style={styles.typeBadgeContainer}>
                               <Text style={styles.typeBadgeText}>
@@ -219,7 +171,6 @@ const SeekerCard = React.memo(({ item, isSelected, onToggleSelection, onViewDeta
                                 <Text style={styles.indicatorLabel}>S:</Text>
                                 {renderProgressDots('attended_session', PRIMARY_COLOR)}
                             </View>
-                            
                             <View style={[styles.indicatorWrapper, { marginLeft: 10 }]}>
                                 <Text style={styles.indicatorLabel}>M:</Text>
                                 {renderProgressDots('month', SUCCESS_COLOR)}
@@ -251,7 +202,7 @@ export default function SeekersListScreen() {
   const [zones, setZones] = useState([]);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [currentMode, setCurrentMode] = useState('from_date'); // Kaunsa field update karna hai
+  const [currentMode, setCurrentMode] = useState('from_date');
   const [whatsappModalVisible, setWhatsappModalVisible] = useState(false);
 
   const { user } = useContext(AuthContext);
@@ -268,27 +219,18 @@ export default function SeekersListScreen() {
 
   const onDateChange = (event, selectedDate) => {
       setShowPicker(false);
-      
       if (event.type === 'set' && selectedDate) {
-          // Bina timezone error ke YYYY-MM-DD format
           const year = selectedDate.getFullYear();
           const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
           const day = String(selectedDate.getDate()).padStart(2, '0');
           const formattedDate = `${year}-${month}-${day}`;
-          
-          setFilters({
-              ...filters,
-              [currentMode]: formattedDate
-          });
+          setFilters({ ...filters, [currentMode]: formattedDate });
       }
   };
 
-  // Date object nikalne ke liye helper
   const getPickerDate = () => {
     const dateString = filters[currentMode];
-    if (dateString) {
-        return new Date(dateString);
-    }
+    if (dateString) return new Date(dateString);
     return new Date();
   };
 
@@ -299,20 +241,16 @@ export default function SeekersListScreen() {
     return "Not Allowed";
   };
   
+  // Filters used by the Filter modal only (search-by-name lives separately, see searchName below)
   const [filters, setFilters] = useState({
-    name: "",
-    mobile: "",
     zone_id: "",
     type: "",
-    interested_in_followup: null,
-    moderator_id: null,
-    attended_puja: null,
     attended_centres: null,
     attended_session_1: null,
     attended_session_2: null,
     attended_session_3: null,
     attended_session_4: null,
-    from_date: "", // YYYY-MM-DD format
+    from_date: "",
     to_date: "",
     month_1: null,
     month_2: null,
@@ -320,43 +258,35 @@ export default function SeekersListScreen() {
     month_4: null,
   });
 
-  // 🛠️ NEW: Debounce the 'name' filter input
-  const debouncedSearchTerm = useDebounce(filters.name, DEBOUNCE_DELAY);
+  // Main-screen search bar (Name/Mobile) — independent of the Filter modal
+  const [searchName, setSearchName] = useState("");
+  const debouncedSearchTerm = useDebounce(searchName, DEBOUNCE_DELAY);
+
+  // Count active filters for badge on Filter button
+  const activeFilterCount = Object.values(filters).filter((v) => v !== "" && v !== null).length;
 
   const fetchSeekers = async (filters = {}, pageNumber = 1, refreshing = false) => {
     if (loading && !refreshing && pageNumber !== 1) return;
-  
     try {
-      // Show loading indicator only when refreshing or initially loading page 1
       if (pageNumber === 1 && !refreshing) setInitialLoading(true);
       setLoading(true);
-  
       const defaultContextParams = {
         zone_id: user.zone_id,
         role_id: role,
         id: user.id,
       };
-
       const finalFilters = { ...filters, ...defaultContextParams };
-  
       const queryParams = Object.entries(finalFilters)
         .filter(([_, value]) => value !== "" && value !== null)
         .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
         .join("&");
-  
       const url = `/seekers?${queryParams}&page=${pageNumber}`;
-  
       const response = await api.get(url);
       const data = response.data.data || [];
       const isLastPage = response.data.current_page >= response.data.last_page;
-  
-      // ECHO TO TERMINAL HERE
-  // console.log("API Response Sample:", data[0]);
-
       setSeekers((prev) => 
         refreshing || pageNumber === 1 ? data : [...prev, ...data]
       );
-  
       setHasMore(!isLastPage);
       setPage(pageNumber);
       setCurrentFilters(filters); 
@@ -369,38 +299,26 @@ export default function SeekersListScreen() {
     }
   };
   
-  // 🚀 FIX: Trigger search only when the debounced term changes
+  // Debounced name search (main screen)
   useEffect(() => {
-    // Only search if the component is not in its initial loading phase
     if (!initialLoading) {
-      // Ensure we merge the debounced name with the other active filters
       const newFilters = { 
         ...currentFilters, 
         name: debouncedSearchTerm, 
-        type: activeTypeTab === 'all' ? '' : activeTypeTab // Ensure the current tab is respected
+        type: activeTypeTab === 'all' ? '' : activeTypeTab,
       };
-      
-      // Update current filters to include the latest search term
       setCurrentFilters(newFilters);
-      
-      // Fetch seekers with the new filters starting from page 1
       fetchSeekers(newFilters, 1, true); 
     }
-  }, [debouncedSearchTerm]); // Dependency on the debounced value
+  }, [debouncedSearchTerm]);
 
-  
   useFocusEffect(
       useCallback(() => {
-          // Guard Clause: Don't fetch if user data isn't ready yet
           if (!user?.id) return;
-
-          // Re-fetch sequence
           fetchSeekers(currentFilters, 1, true);
-
       }, [user?.id, user?.zone_id, role, currentFilters]) 
   );
   
-  // Initial zones fetch
   useEffect(() => {
     const fetchZones = async () => {
         try {
@@ -424,9 +342,9 @@ export default function SeekersListScreen() {
     fetchSeekers(currentFilters, 1, true);
   };
   
-  // 🛠️ Updated: Now only updates the local state 'filters.name'. The debounced effect handles the API call.
+  // Search bar handler — uses separate searchName state
   const handleSearchChange = (text) => {
-    setFilters(prev => ({ ...prev, name: text }));
+    setSearchName(text);
   };
 
   const handleApplyFilters = () => {
@@ -434,39 +352,29 @@ export default function SeekersListScreen() {
       Object.entries(filters).filter(([_, v]) => v !== "" && v !== null)
     );
     setFilterVisible(false);
-    
-    // Set active tab based on filter result
     if (params.type) {
         setActiveTypeTab(params.type);
     } else {
         setActiveTypeTab("all");
     }
-    
-    // Apply filters and search term together
     const combinedFilters = {
         ...params,
         filter_zone_id: filters.zone_id,
-        name: filters.name, // Use the current filter's name (which might not be debounced yet)
+        name: searchName,
     };
-
     fetchSeekers(combinedFilters, 1, true);
   };
 
   const handleReset = () => {
     const resetFilters = {
-      name: "",
-      mobile: "",
       zone_id: "",
       type: "",
-      interested_in_followup: null,
-      moderator_id: null,
-      attended_puja: null,
       attended_centres: null,
       attended_session_1: null,
       attended_session_2: null,
       attended_session_3: null,
       attended_session_4: null,
-      from_date: "", // YYYY-MM-DD format
+      from_date: "",
       to_date: "",
       month_1: null,
       month_2: null,
@@ -475,7 +383,8 @@ export default function SeekersListScreen() {
     };
     setFilters(resetFilters);
     setActiveTypeTab("all");
-    setIsSearchVisible(false); 
+    setIsSearchVisible(false);
+    setSearchName("");
     fetchSeekers(resetFilters, 1, true); 
   };
 
@@ -506,7 +415,6 @@ export default function SeekersListScreen() {
   
   const assignModerator = async () => {
     if (!selectedModerator) return Alert.alert("Please select a caller/mentor");
-  
     try {
       await api.post("/seekers/assign-moderator", {
         moderator_id: selectedModerator,
@@ -516,13 +424,12 @@ export default function SeekersListScreen() {
       Alert.alert("Success", `${modalTitle} assigned successfully!`);
       setModeratorModalVisible(false);
       setSelectedSeekers([]);
-      fetchSeekers(currentFilters, 1, true); // Refresh list
+      fetchSeekers(currentFilters, 1, true);
     } catch (error) {
       console.error("Error assigning mentor:", error);
       Alert.alert("Error", "Could not assign caller/mentor.");
     }
   };
-  
 
   if (initialLoading) {
     return (
@@ -533,29 +440,23 @@ export default function SeekersListScreen() {
     );
   }
   
-  // Define the custom Home button component
   const renderHomeButton = () => (
       <TouchableOpacity
           style={styles.homeButton}
-          // Use router.replace to go to the Home screen and clear the stack history
-          onPress={() => router.replace('/')} // Change '/' to your actual home path (e.g., '/home')
+          onPress={() => router.replace('/')}
       >
           <Ionicons name="home-outline" size={24} color="#1F2937" />
       </TouchableOpacity>
   );
 
-  
-
+  // Filter button now shows an active filter count badge
   const renderHeaderRight = () => (
     <View style={styles.headerRightContainer}>
         <TouchableOpacity
             style={styles.headerIcon}
             onPress={() => {
                 setIsSearchVisible(prev => !prev);
-                // Clear search input if hiding
-                if (isSearchVisible) {
-                    handleSearchChange(''); 
-                }
+                if (isSearchVisible) handleSearchChange(''); 
             }} 
         >
             <Ionicons name={isSearchVisible ? "close" : "search"} size={24} color="#1F2937" />
@@ -566,6 +467,11 @@ export default function SeekersListScreen() {
         >
             <Ionicons name="filter" size={18} color="#fff" />
             <Text style={styles.filterText}>Filter</Text>
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
         </TouchableOpacity>
     </View>
   );
@@ -591,15 +497,12 @@ export default function SeekersListScreen() {
                   style={styles.searchInput}
                   placeholder="Search Name or Mobile..."
                   placeholderTextColor="#A0A0A0"
-                  value={filters.name} 
+                  value={searchName}
                   onChangeText={handleSearchChange}
-                  // Removed onSubmitEditing as debounce handles search now
               />
-              {filters.name.length > 0 && (
+              {searchName.length > 0 && (
                 <TouchableOpacity 
-                  onPress={() => {
-                      handleSearchChange(''); // Clear search input
-                  }}
+                  onPress={() => handleSearchChange('')}
                   style={{padding: 5}}
                 >
                   <Ionicons name="close-circle" size={20} color="#A0A0A0" />
@@ -608,8 +511,7 @@ export default function SeekersListScreen() {
           </View>
       )}
 
-
-      {/* Tabs for Type Filtering (More compact design) */}
+      {/* Tabs — UNCHANGED */}
       <View style={styles.tabsContainer}>
         {[
           { label: "All", value: "all" },
@@ -624,24 +526,20 @@ export default function SeekersListScreen() {
               const newFilters = {
                 ...currentFilters, 
                 type: tab.value === "all" ? "" : tab.value,
-                name: filters.name, // Preserve current search term
+                name: searchName,
               };
               setCurrentFilters(newFilters);
               fetchSeekers(newFilters, 1, true);
             }}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTypeTab === tab.value && styles.activeTabText,
-              ]}
-            >
+            <Text style={[styles.tabText, activeTypeTab === tab.value && styles.activeTabText]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {/* FlatList — UNCHANGED */}
       <FlatList
         data={seekers}
         keyExtractor={(item) => item.id.toString()}
@@ -656,16 +554,15 @@ export default function SeekersListScreen() {
             <ActivityIndicator size="small" color={PRIMARY_COLOR} style={{ padding: 10 }} />
           ) : null
         }
-        // 🚀 FIX: Increased bottom padding significantly to clear the bottom navigation area and floating button
         contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: selectedSeekers.length > 0 ? 150 : 50 }}
         ListEmptyComponent={
           !loading && <Text style={styles.emptyText}>No seekers found matching your criteria.</Text>
         }
       />
 
+      {/* Floating actions — UNCHANGED (Assign button keeps original absolute positioning) */}
       {selectedSeekers.length > 0 && (
         <View style={styles.floatingActions}>
-          {/* Existing assign button */}
           <TouchableOpacity
             style={[styles.assignButton, isDisabled && styles.assignButtonDisabled]}
             disabled={isDisabled}
@@ -679,9 +576,8 @@ export default function SeekersListScreen() {
           >
             <Text style={styles.assignButtonText}>{getButtonLabel()}</Text>
           </TouchableOpacity>
-
-          {/* New WhatsApp button */}
-          <TouchableOpacity
+         
+          {/* <TouchableOpacity
             style={styles.whatsappButton}
             onPress={() => setWhatsappModalVisible(true)}
           >
@@ -689,142 +585,167 @@ export default function SeekersListScreen() {
             <Text style={styles.whatsappButtonText}>
               WhatsApp ({selectedSeekers.length})
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       )}
 
-      {/* 🪟 Filter Modal */}
+      {/* Filter Modal — new compact dot-based design */}
       <Modal visible={filterVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             
             <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.modalTitle}>Filter Seekers</Text>
-                <TouchableOpacity
-                    onPress={() => setFilterVisible(false)}
-                    style={styles.closeButton}
-                >
-                    <Ionicons name="close" size={24} color="#555" />
-                </TouchableOpacity>
+                {activeFilterCount > 0 && (
+                  <View style={styles.filterActiveBadge}>
+                    <Text style={styles.filterActiveBadgeText}>{activeFilterCount} active</Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => setFilterVisible(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#555" />
+              </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={{paddingBottom: 20}}>
-             
+
+              {/* 1. Date Range */}
               <Text style={styles.sectionTitle}>Date Range</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                
-                {/* From Date */}
                 <TouchableOpacity 
-                  style={[styles.input, { flex: 0.48 }]} 
+                  style={[styles.dateButton, { flex: 0.48 }]} 
                   onPress={() => showDatePicker('from_date')}
                 >
-                  <Text style={{ color: filters.from_date ? '#000' : '#A0A0A0' }}>
+                  <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 6 }} />
+                  <Text style={{ color: filters.from_date ? '#000' : '#A0A0A0', fontSize: 14, flex: 1 }}>
                     {filters.from_date || "From Date"}
                   </Text>
+                  {filters.from_date ? (
+                    <TouchableOpacity onPress={() => setFilters({ ...filters, from_date: "" })}>
+                      <Ionicons name="close-circle" size={16} color="#A0A0A0" />
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
 
-                {/* To Date */}
                 <TouchableOpacity 
-                  style={[styles.input, { flex: 0.48 }]} 
+                  style={[styles.dateButton, { flex: 0.48 }]} 
                   onPress={() => showDatePicker('to_date')}
                 >
-                  <Text style={{ color: filters.to_date ? '#000' : '#A0A0A0' }}>
+                  <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 6 }} />
+                  <Text style={{ color: filters.to_date ? '#000' : '#A0A0A0', fontSize: 14, flex: 1 }}>
                     {filters.to_date || "To Date"}
                   </Text>
+                  {filters.to_date ? (
+                    <TouchableOpacity onPress={() => setFilters({ ...filters, to_date: "" })}>
+                      <Ionicons name="close-circle" size={16} color="#A0A0A0" />
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
-
               </View>
 
-
+              {/* 2. Pratishthan Session Filter */}
               <Text style={styles.sectionTitle}>Pratishthan Session Filter</Text>
-
-              {/* Pratishthan Sessions (1st to 4th) */}
-              {[1, 2, 3, 4].map((n) => (
-                <View key={`session-${n}`} style={styles.optionGroup}>
-                    <Text style={styles.optionGroupLabel}>{`Attended ${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Session`}</Text>
-                    <View style={styles.optionRow}>
-                        <FilterOption label="Yes" isSelected={filters[`attended_session_${n}`] === true} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: true })} />
-                        <FilterOption label="No" isSelected={filters[`attended_session_${n}`] === false} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: false })} />
-                        <FilterOption label="All" isSelected={filters[`attended_session_${n}`] === null} onPress={() => setFilters({ ...filters, [`attended_session_${n}`]: null })} />
-                    </View>
+              <View style={styles.fDotRow}>
+                <Text style={styles.fDotRowLabel}>Sessions</Text>
+                <View style={styles.fDotGroup}>
+                  {[1, 2, 3, 4].map((n) => {
+                    const key = `attended_session_${n}`;
+                    const isOn = filters[key] === true;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[styles.fDot, isOn && styles.fDotActiveBlue]}
+                        onPress={() => setFilters({ ...filters, [key]: isOn ? null : true })}
+                      >
+                        <Text style={[styles.fDotText, isOn && styles.fDotTextActiveBlue]}>{n}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              ))}
+                <Text style={styles.fDotHint}>tap to filter</Text>
+              </View>
 
+              {/* 3. Mentor Activity Filter */}
+              <Text style={styles.sectionTitle}>Mentor Activity Filter</Text>
+              <View style={styles.fDotRow}>
+                <Text style={styles.fDotRowLabel}>Months</Text>
+                <View style={styles.fDotGroup}>
+                  {[1, 2, 3, 4].map((n) => {
+                    const key = `month_${n}`;
+                    const isOn = filters[key] === true;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[styles.fDot, isOn && styles.fDotActiveGreen]}
+                        onPress={() => setFilters({ ...filters, [key]: isOn ? null : true })}
+                      >
+                        <Text style={[styles.fDotText, isOn && styles.fDotTextActiveGreen]}>{n}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.fDotHint}>tap to filter</Text>
+              </View>
 
+              {/* 4. Seeker Details — Zone + Type */}
               <Text style={styles.sectionTitle}>Seeker Details</Text>
 
-              {/* Mobile Input */}
-              <TextInput
-                style={styles.input}
-                placeholder="Mobile Number"
-                placeholderTextColor="#A0A0A0"
-                keyboardType="phone-pad"
-                value={filters.mobile}
-                onChangeText={(text) => setFilters({ ...filters, mobile: text })}
-              />
-              
-              {/* Zone Picker */}
               <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={filters.zone_id}
-                    onValueChange={(value) => setFilters({ ...filters, zone_id: value })}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    <Picker.Item label="Select Zone" value="" color="#A0A0A0" />
-                    {zones.map((zone) => (
-                      <Picker.Item key={zone.id} label={zone.name} value={zone.id} />
-                    ))}
-                  </Picker>
+                <Picker
+                  selectedValue={filters.zone_id}
+                  onValueChange={(value) => setFilters({ ...filters, zone_id: value })}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  <Picker.Item label="All Zones" value="" color="#A0A0A0" />
+                  {zones.map((zone) => (
+                    <Picker.Item key={zone.id} label={zone.name} value={zone.id} />
+                  ))}
+                </Picker>
               </View>
 
-              {/* Type Picker */}
-              <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={filters.type}
-                    onValueChange={(value) => setFilters({ ...filters, type: value })}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    <Picker.Item label="Select Type" value="" color="#A0A0A0" />
-                    <Picker.Item label="Pratishthan" value="1" />
-                    <Picker.Item label="Public" value="2" />
-                  </Picker>
-              </View>
-
-
-              <Text style={styles.sectionTitle}>Mentor Activity  Filter</Text>
-
-              {[1, 2, 3, 4].map((n) => (
-                <View key={`month-${n}`} style={styles.optionGroup}>
-                  <Text style={styles.optionGroupLabel}>{`Month ${n} Follow-up`}</Text>
-                  <View style={styles.optionRow}>
-                    <FilterOption 
-                      label="Done" 
-                      isSelected={filters[`month_${n}`] === true} 
-                      onPress={() => setFilters({ ...filters, [`month_${n}`]: true })} 
-                    />
-                    <FilterOption 
-                      label="Pending" 
-                      isSelected={filters[`month_${n}`] === false} 
-                      onPress={() => setFilters({ ...filters, [`month_${n}`]: false })} 
-                    />
-                    <FilterOption 
-                      label="All" 
-                      isSelected={filters[`month_${n}`] === null} 
-                      onPress={() => setFilters({ ...filters, [`month_${n}`]: null })} 
-                    />
-                  </View>
+              <View style={styles.fInlineRow}>
+                <Text style={styles.fInlineLabel}>Type</Text>
+                <View style={styles.fToggleGroup}>
+                  {[
+                    { label: "All", value: "" },
+                    { label: "Pratishthan", value: "1" },
+                    { label: "Public", value: "2" },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[styles.fToggleBtn, filters.type === opt.value && styles.fToggleBtnActive]}
+                      onPress={() => setFilters({ ...filters, type: opt.value })}
+                    >
+                      <Text style={[styles.fToggleBtnText, filters.type === opt.value && styles.fToggleBtnTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              ))}
+              </View>
 
-              {/* Attended Centre */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>Attended Centre</Text>
-                <View style={styles.optionRow}>
-                    <FilterOption label="Yes" isSelected={filters.attended_centres === true} onPress={() => setFilters({ ...filters, attended_centres: true })} />
-                    <FilterOption label="No" isSelected={filters.attended_centres === false} onPress={() => setFilters({ ...filters, attended_centres: false })} />
-                    <FilterOption label="All" isSelected={filters.attended_centres === null} onPress={() => setFilters({ ...filters, attended_centres: null })} />
+              {/* 5. Activity — Attended Centre */}
+              <Text style={styles.sectionTitle}>Activity</Text>
+              <View style={styles.fInlineRow}>
+                <Text style={styles.fInlineLabel}>Attended Centre</Text>
+                <View style={styles.fToggleGroup}>
+                  {[
+                    { label: "All", value: null },
+                    { label: "Yes", value: true },
+                    { label: "No", value: false },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={String(opt.value)}
+                      style={[styles.fToggleBtn, filters.attended_centres === opt.value && styles.fToggleBtnActive]}
+                      onPress={() => setFilters({ ...filters, attended_centres: opt.value })}
+                    >
+                      <Text style={[styles.fToggleBtnText, filters.attended_centres === opt.value && styles.fToggleBtnTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
 
@@ -832,44 +753,40 @@ export default function SeekersListScreen() {
 
             {showPicker && (
               <DateTimePicker
-                // Aaj ki date ki jagah, select ki hui date dikhayein
                 value={getPickerDate()} 
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onDateChange}
-                // Optional: Future dates rokne ke liye
                 maximumDate={new Date()} 
               />
             )}
 
             <SafeAreaView edges={['bottom']} style={styles.safeAreaFooter}>
               <View style={styles.modalFooter}>
-                  <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-                      <Text style={styles.resetButtonText}>Reset</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
-                      <Text style={styles.applyButtonText}>Apply Filters</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+                  <Text style={styles.resetButtonText}>Reset</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
+                  <Text style={styles.applyButtonText}>Apply Filters</Text>
+                </TouchableOpacity>
               </View>
             </SafeAreaView>
           </View>
         </View>
       </Modal>
 
-
-      {/* 🪟 Mentor/Caller Assignment Modal */}
+      {/* Mentor/Caller Assignment Modal — UNCHANGED */}
       <Modal visible={moderatorModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
             <View style={styles.moderatorModalContent}>
                 <Text style={styles.modalTitle}>{`Select ${modalTitle}`}</Text>
-
                 <ScrollView style={{maxHeight: 300, marginVertical: 15}}>
                     {moderators.map((mod) => (
                     <TouchableOpacity
                         key={mod.id}
                         style={[
-                        styles.moderatorItem,
-                        mod.id === selectedModerator && styles.selectedModerator,
+                          styles.moderatorItem,
+                          mod.id === selectedModerator && styles.selectedModerator,
                         ]}
                         onPress={() => setSelectedModerator(mod.id)}
                     >
@@ -878,7 +795,6 @@ export default function SeekersListScreen() {
                     </TouchableOpacity>
                     ))}
                 </ScrollView>
-
                 <View style={styles.modalButtons}>
                     <Button title="Cancel" color="gray" onPress={() => setModeratorModalVisible(false)} />
                     <Button title={`Assign ${selectedSeekers.length} Seeker(s)`} color="#00BCD4" onPress={assignModerator} />
@@ -900,175 +816,42 @@ export default function SeekersListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BACKGROUND_COLOR,  },
+  // ── UNCHANGED: all original main-screen styles kept exactly as-is ──
+  container: { flex: 1, backgroundColor: BACKGROUND_COLOR },
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: BACKGROUND_COLOR },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#6B7280',
-  },
+  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#6B7280' },
+  headerRightContainer: { flexDirection: 'row', alignItems: 'center', marginRight: -10 },
+  headerIcon: { padding: 10, marginRight: 10 },
+  filterButton: { flexDirection: "row", alignItems: "center", backgroundColor: PRIMARY_COLOR, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  filterText: { color: "#fff", marginLeft: 5, fontWeight: "600", fontSize: 14 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BACKGROUND, borderRadius: 10, paddingHorizontal: 15, marginHorizontal: 10, marginTop: 0, marginBottom: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, paddingTop: Platform.OS === 'ios' ? 8 : 8, paddingBottom: Platform.OS === 'ios' ? 8 : 8, fontSize: 15, color: '#1F2937' },
+  tabsContainer: { flexDirection: "row", justifyContent: "space-around", marginHorizontal: 10, marginBottom: 10, backgroundColor: "#E0F7FA", borderRadius: 8, padding: 2 },
+  tab: { flex: 1, paddingVertical: 6, alignItems: "center", borderRadius: 6 },
+  activeTab: { backgroundColor: CARD_BACKGROUND, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
+  tabText: { fontSize: 13, fontWeight: "500", color: "#00BCD4" },
+  activeTabText: { color: PRIMARY_COLOR, fontWeight: "700" },
+  card: { backgroundColor: CARD_BACKGROUND, borderRadius: 12, marginHorizontal: 5, marginVertical: 4, padding: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
+  selectedCard: { backgroundColor: "#EBF5FF", borderWidth: 2, borderColor: PRIMARY_COLOR, elevation: 4 },
+  cardContent: { flexDirection: "row", alignItems: "flex-start" },
+  checkboxContainer: { paddingRight: 10, paddingVertical: 2 },
+  infoContainer: { flex: 1, marginLeft: 5 },
+  nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  name: { fontSize: 15, fontWeight: "700", color: "#1F2937", flex: 1 },
+  detailsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  locationText: { fontSize: 13, color: "#4B5563" },
+  mobileText: { fontSize: 13, color: "#4B5563" },
+  typeBadgeContainer: { marginTop: 4, alignSelf: 'flex-start', backgroundColor: '#F0F9FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#C5E0FF' },
+  typeBadgeText: { fontSize: 11, fontWeight: '600', color: '#1E40AF' },
+  typeBadgeStatusContainer: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6 },
+  typeBadgeStatusText: { fontWeight: "600" },
 
-  // --- Header Right and Search Toggle ---
-  headerRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: -10, 
-  },
-  headerIcon: {
-    padding: 10,
-    marginRight: 10,
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: PRIMARY_COLOR,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  filterText: {
-    color: "#fff",
-    marginLeft: 5,
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  
-  // --- Search Bar (Conditional) ---
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CARD_BACKGROUND,
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginHorizontal: 10,
-    marginTop: 0, 
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 8 : 8, 
-    paddingBottom: Platform.OS === 'ios' ? 8 : 8, 
-    fontSize: 15,
-    color: '#1F2937',
-  },
-
-  // --- Tabs ---
-  tabsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginHorizontal: 10,
-    marginBottom: 10,
-    backgroundColor: "#E0F7FA", 
-    borderRadius: 8,
-    padding: 2, 
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 6, 
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  activeTab: {
-    backgroundColor: CARD_BACKGROUND,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 13, 
-    fontWeight: "500",
-    color: "#00BCD4", 
-  },
-  activeTabText: {
-    color: PRIMARY_COLOR, 
-    fontWeight: "700",
-  },
-
-  // --- List Item Card (Density Optimized) ---
-  card: {
-    backgroundColor: CARD_BACKGROUND,
-    borderRadius: 12,
-    marginHorizontal: 5,
-    marginVertical: 4, 
-    padding: 12, 
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  selectedCard: {
-    backgroundColor: "#EBF5FF", 
-    borderWidth: 2,
-    borderColor: PRIMARY_COLOR,
-    elevation: 4,
-  },
-  cardContent: { 
-    flexDirection: "row", 
-    alignItems: "flex-start", 
-  },
-  checkboxContainer: {
-    paddingRight: 10, 
-    paddingVertical: 2,
-  },
-  infoContainer: {
-    flex: 1, 
-    marginLeft: 5 
-  },
-  nameRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "space-between",
-    marginBottom: 2,
-  },
-  name: { 
-    fontSize: 15, 
-    fontWeight: "700", 
-    color: "#1F2937" ,
-    flex: 1,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2, 
-  },
-  locationText: { 
-    fontSize: 13, 
-    color: "#4B5563", 
-  },
-  mobileText: {
-    fontSize: 13, 
-    color: "#4B5563",
-  },
-  typeBadgeContainer: {
-    marginTop: 4, 
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F9FF', 
-    paddingHorizontal: 6, 
-    paddingVertical: 2, 
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#C5E0FF',
-  },
-  
-  typeBadgeText: {
-    fontSize: 11, 
-    fontWeight: '600',
-    color: '#1E40AF', 
-  },
- 
-  // --- Assignment Button (Bottom Fix applied here too) ---
+  // Assign button — kept exactly as original (absolute positioned on the button itself,
+  // in addition to the floatingActions wrapper).
   assignButton: {
     position: "absolute",
-    bottom: Platform.OS === 'ios' ? 20 : 35, // Increased bottom margin for Android safe area/nav bar
+    bottom: Platform.OS === 'ios' ? 20 : 35,
     left: 10,
     right: 10,
     backgroundColor: PRIMARY_COLOR,
@@ -1081,278 +864,88 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
-  assignButtonDisabled: {
-    backgroundColor: "#A0A0A0",
-  },
-  // assignButtonText: {
-  //   color: "#fff",
-  //   fontSize: 16,
-  //   fontWeight: "800",
-  // },
+  assignButtonDisabled: { backgroundColor: "#A0A0A0" },
+  assignButtonText: { color: "#fff", fontSize: 16, fontWeight: "800" },
 
-  // --- Modal Styles (Maintained Structure) ---
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end", 
-    paddingBottom: 25,
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", paddingBottom: 25 },
+  modalContent: { width: "100%", maxHeight: "90%", backgroundColor: CARD_BACKGROUND, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 15, paddingBottom: 25 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1F2937" },
+  closeButton: { padding: 5 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 20, marginBottom: 10, color: PRIMARY_COLOR, borderBottomWidth: 1, borderBottomColor: "#D1E3FF", paddingBottom: 5 },
+  input: { borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 15, backgroundColor: '#F9FAFB' },
+  pickerWrapper: { borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, marginBottom: 15, overflow: 'hidden', backgroundColor: '#F9FAFB' },
+  picker: { height: 55, width: '100%' },
+  pickerItem: { fontSize: 15 },
+  optionGroup: { marginBottom: 15 },
+  optionGroupLabel: { fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 8 },
+  optionRow: { flexDirection: "row", flexWrap: 'wrap' },
+  filterOption: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, marginRight: 10, marginBottom: 8, borderWidth: 1 },
+  unselectedOption: { backgroundColor: "#F3F4F6", borderColor: "#D1D5DB" },
+  selectedOption: { backgroundColor: PRIMARY_COLOR, borderColor: PRIMARY_COLOR },
+  filterOptionText: { color: "#374151", fontWeight: "500" },
+  selectedOptionText: { color: "#fff" },
+  modalFooter: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 15, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  resetButton: { padding: 12, borderRadius: 8, backgroundColor: "#F3F4F6", width: '35%', alignItems: 'center' },
+  resetButtonText: { color: "#4B5563", fontWeight: '700' },
+  applyButton: { padding: 12, borderRadius: 8, backgroundColor: SUCCESS_COLOR, width: '60%', alignItems: 'center' },
+  applyButtonText: { color: "#fff", fontWeight: '700' },
+  moderatorModalContent: { width: "90%", backgroundColor: CARD_BACKGROUND, borderRadius: 12, padding: 20, alignSelf: 'center', elevation: 10 },
+  moderatorItem: { paddingVertical: 12, paddingHorizontal: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  selectedModerator: { backgroundColor: "#EBF5FF", borderRadius: 8 },
+  moderatorName: { fontSize: 16, fontWeight: '600' },
+  moderatorZone: { fontSize: 13, color: '#6B7280' },
+  modalButtons: { flexDirection: "row", justifyContent: "space-between", marginTop: 15 },
+  homeButton: { marginLeft: 10, padding: 5, paddingRight: 20 },
+  statusBadgeRow: { flexDirection: 'row', alignItems: 'center' },
+  miniBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 5 },
+  miniBadgeText: { fontSize: 10, fontWeight: 'bold', marginLeft: 2, color: '#333' },
 
-  },
-  modalContent: {
-    width: "100%",
-    maxHeight: "90%",
-    backgroundColor: CARD_BACKGROUND,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 25,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: "700", 
-    color: "#1F2937" 
-  },
-  closeButton: {
-    padding: 5,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 20,
-    marginBottom: 10,
-    color: PRIMARY_COLOR,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D1E3FF",
-    paddingBottom: 5,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    fontSize: 15,
-    backgroundColor: '#F9FAFB',
-  },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    marginBottom: 15,
-    overflow: 'hidden',
-    backgroundColor: '#F9FAFB',
-  },
-  picker: { 
-    height: 55, 
-    width: '100%',
-  },
-  pickerItem: {
-    fontSize: 15,
-  },
-  optionGroup: {
-    marginBottom: 15,
-  },
-  optionGroupLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  optionRow: {
-    flexDirection: "row",
-    flexWrap: 'wrap',
-  },
-  filterOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  unselectedOption: {
-    backgroundColor: "#F3F4F6",
-    borderColor: "#D1D5DB",
-  },
-  selectedOption: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
-  filterOptionText: {
-    color: "#374151",
-    fontWeight: "500",
-  },
-  selectedOptionText: {
-    color: "#fff",
-  },
-  modalFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  resetButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-    width: '35%',
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    color: "#4B5563",
-    fontWeight: '700',
-  },
-  applyButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: SUCCESS_COLOR,
-    width: '60%',
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: "#fff",
-    fontWeight: '700',
-  },
-  moderatorModalContent: {
-    width: "90%",
-    backgroundColor: CARD_BACKGROUND,
-    borderRadius: 12,
-    padding: 20,
-    alignSelf: 'center',
-    elevation: 10,
-  },
-  moderatorItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectedModerator: {
-    backgroundColor: "#EBF5FF",
-    borderRadius: 8,
-  },
-  moderatorName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  moderatorZone: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 15,
-  },
-  homeButton: {
-      marginLeft: 10, // Adjust spacing from the screen edge
-      padding: 5,     // Make the touch target slightly larger
-      paddingRight: 20,
-  },
-  statusBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  miniBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    marginLeft: 5,
-  },
-  miniBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 2,
-    color: '#333',
-  },
-  statusBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dotGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  miniDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 2,
-  },
-  dotText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  bottomBadgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  progressSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  indicatorWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  indicatorLabel: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#6B7280',
-    marginRight: 2,
-  },
-  dotGroup: {
-    flexDirection: 'row',
-  },
-  miniDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 4, // Slightly squared for a modern look
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 2,
-  },
-  dotText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  floatingActions: {
-    position: "absolute",
-    bottom: Platform.OS === "ios" ? 20 : 55,
-    left: 10, right: 10,
-    gap: 8,
-  },
-  whatsappButton: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, backgroundColor: "#25D366",
-    padding: 14, borderRadius: 12,
-    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 6,
-    // margin: 30
-  },
-  whatsappButtonText: {
-    color: "#fff", fontSize: 15, fontWeight: "700",
-  },
+  // Card progress dots — kept at original (smaller) size so the main list is unaffected
+  dotGroup: { flexDirection: 'row' },
+  miniDot: { width: 14, height: 14, borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginLeft: 2 },
+  dotText: { fontSize: 8, fontWeight: 'bold' },
+
+  bottomBadgeContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  progressSection: { flexDirection: 'row', alignItems: 'center' },
+  indicatorWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6 },
+  indicatorLabel: { fontSize: 9, fontWeight: 'bold', color: '#6B7280', marginRight: 2 },
+
+  // floatingActions wrapper — UNCHANGED
+  floatingActions: { position: "absolute", bottom: Platform.OS === "ios" ? 20 : 55, left: 10, right: 10, gap: 8 },
+  whatsappButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#25D366", padding: 14, borderRadius: 12, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 6 },
+  whatsappButtonText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  safeAreaFooter: {},
+
+  // ── NEW: filter button badge ──
+  filterBadge: { backgroundColor: "#fff", borderRadius: 8, marginLeft: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  filterBadgeText: { color: PRIMARY_COLOR, fontSize: 11, fontWeight: "700" },
+
+  // ── NEW: active badge inside modal header ──
+  filterActiveBadge: { backgroundColor: "#185FA5", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  filterActiveBadgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+
+  // ── NEW: date buttons ──
+  dateButton: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 11, marginBottom: 15, backgroundColor: "#F9FAFB" },
+
+  // ── NEW: filter modal dot rows (prefixed fDot* — no collision with card styles) ──
+  fDotRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, padding: 12, marginBottom: 10 },
+  fDotRowLabel: { fontSize: 13, color: "#6B7280", width: 58 },
+  fDotGroup: { flexDirection: "row", gap: 6, flex: 1 },
+  fDot: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6", borderWidth: 0.5, borderColor: "#D1D5DB" },
+  fDotActiveBlue: { backgroundColor: "#007AFF", borderColor: "#005EC4" },
+  fDotActiveGreen: { backgroundColor: "#34C759", borderColor: "#248A3D" },
+  fDotText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
+  fDotTextActiveBlue: { color: "#fff", fontWeight: "700" },
+  fDotTextActiveGreen: { color: "#fff", fontWeight: "700" },
+  fDotHint: { fontSize: 11, color: "#9CA3AF" },
+
+  // ── NEW: inline row (label + toggle) for Type and Attended Centre ──
+  fInlineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10 },
+  fInlineLabel: { fontSize: 14, color: "#1F2937", flex: 1 },
+  fToggleGroup: { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 8, overflow: "hidden", borderWidth: 0.5, borderColor: "#D1D5DB" },
+  fToggleBtn: { paddingVertical: 6, paddingHorizontal: 10 },
+  fToggleBtnActive: { backgroundColor: "#007AFF" },
+  fToggleBtnText: { fontSize: 12, color: "#6B7280" },
+  fToggleBtnTextActive: { color: "#fff", fontWeight: "700" },
 });

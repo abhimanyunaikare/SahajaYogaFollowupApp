@@ -36,15 +36,24 @@ const ChecklistSwitch = ({ label, value, onChange, isLast, disabled }) => (
 const SwitchAndComment = ({ label, switchValue, onSwitchChange, commentValue, onCommentChange, ordinal, isLast }) => (
   <View style={[styles.groupContainer, isLast && { marginBottom: 0 }]}>
     <ChecklistSwitch label={label} value={switchValue} onChange={onSwitchChange} />
-    <TextInput
-      style={styles.commentInput}
-      placeholder={`${ordinal} session comments (Optional)`}
-      placeholderTextColor="#A0A0A0"
-      value={commentValue || ""}
-      onChangeText={onCommentChange}
-      multiline
-      numberOfLines={3}
-    />
+    {switchValue ? (
+      <TextInput
+        style={styles.commentInput}
+        placeholder={`${ordinal} month comments (Optional)`}
+        placeholderTextColor="#A0A0A0"
+        value={commentValue || ""}
+        onChangeText={onCommentChange}
+        multiline
+        numberOfLines={3}
+      />
+    ) : (
+      <View style={styles.commentLocked}>
+        <FontAwesome5 name="lock" size={12} color="#B0B0B0" />
+        <Text style={styles.commentLockedText}>
+          Mark review as done to add comments
+        </Text>
+      </View>
+    )}
   </View>
 );
 
@@ -473,4 +482,19 @@ const styles = StyleSheet.create({
 
   headerButton: { marginRight: 10, paddingVertical: 5, paddingHorizontal: 10 },
   headerButtonText: { color: "#007AFF", fontSize: 16, fontWeight: "600" },
+  commentLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
+    backgroundColor: '#F2F2F2',
+    borderTopWidth: 1,
+    borderTopColor: '#D1D1D6',
+    minHeight: 44,
+  },
+  commentLockedText: {
+    fontSize: 13,
+    color: '#B0B0B0',
+    fontStyle: 'italic',
+  },
 });
