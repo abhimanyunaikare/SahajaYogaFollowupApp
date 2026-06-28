@@ -19,6 +19,7 @@
         "android.permission.CAMERA"
       ],
       "package": "com.sahajayoga.dev",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1
     },
     "plugins": [
